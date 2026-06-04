@@ -1,0 +1,31 @@
+<svg viewBox="0 0 200 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      .cloud {
+        animation: cloudFloat 3.5s ease-in-out infinite;
+        transform-origin: center;
+      }
+      @keyframes cloudFloat {
+        0%, 100% { transform: translateY(0px); }
+        50% { transform: translateY(-8px); }
+      }
+    </style>
+  </defs>
+  <!-- Clean, modern cloud (local + remote) -->
+  <g class="cloud">
+    <!-- Left cloud (local) -->
+    <ellipse cx="35" cy="55" rx="28" ry="22" fill="#0f1b2d"/>
+    <circle cx="12" cy="50" r="18" fill="#0f1b2d"/>
+    <circle cx="32" cy="32" r="22" fill="#0f1b2d"/>
+    <circle cx="56" cy="38" r="20" fill="#0f1b2d"/>
+    <!-- Right cloud (remote) faded = reflection of local -->
+    <ellipse cx="155" cy="55" rx="28" ry="22" fill="#ec7211" opacity="0.35"/>
+    <circle cx="132" cy="50" r="18" fill="#ec7211" opacity="0.35"/>
+    <circle cx="152" cy="32" r="22" fill="#ec7211" opacity="0.35"/>
+    <circle cx="176" cy="38" r="20" fill="#ec7211" opacity="0.35"/>
+    <!-- Connection line: showing they're linked -->
+    <line x1="70" y1="55" x2="130" y2="55" stroke="#ec7211" stroke-width="2.5" opacity="0.6" stroke-dasharray="5,5"/>
+    <!-- Center accent dot -->
+    <circle cx="100" cy="55" r="5" fill="#ec7211" opacity="0.9"/>
+  </g>
+</svg>

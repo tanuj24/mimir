@@ -1,55 +1,52 @@
 <div align="center">
 
-# Mimir
-
-**See your cloud, before you ship your cloud.**
-
-A local, AWS-style console for poking at cloud services on your own machine — no AWS account, no bill, no internet required. It runs on top of [Floci](https://floci.io).
-
-[![License: MIT](https://img.shields.io/badge/license-MIT-ec7211.svg)](LICENSE) &nbsp;·&nbsp; Powered by [Floci](https://floci.io)
+![Mimir Banner](./brand/banner.svg)
 
 </div>
 
+## What is Mimir?
+
+You've built something cool. You're about to ship it to AWS. But what if you could poke at it *locally first* — spin up a bucket, write to DynamoDB, trigger a Lambda, run a Spark job — all without touching your real account or watching a bill tick up?
+
+**Mimir** is a local AWS sandbox running on your machine. It gives you the familiar AWS console (the one you know), but everything points at a cloud running on your laptop. The backend is [Floci](https://floci.io), a lightweight, free AWS emulator. Mimir is the friendly web UI on top of it.
+
+Think of it as a playground you can break without consequences — so you can see how your cloud actually *behaves* before any of it is real.
+
 ---
 
-## The idea
+## What you get
 
-If you've ever wanted to try something on AWS — drop a file in a bucket, fire a Lambda, scan a DynamoDB table, run a Glue job — but didn't want to create real resources, juggle credentials, or watch the meter run, that's what Mimir is for.
+**15+ AWS services** with real, working UIs:
 
-It gives you the familiar AWS console experience (left-hand service nav, region picker, resource tables, the works) but everything points at a cloud running on your laptop. The backend is [Floci](https://floci.io), a fast little AWS emulator. Mimir is the friendly face on top of it.
+| Storage | Databases | Compute | Containers | Messaging | Analytics | Security | Observability |
+|---------|-----------|---------|-----------|-----------|-----------|----------|----------------|
+| **S3** | **DynamoDB** | **Lambda** | **ECS** | **SQS** | **Glue** | **KMS** | **CloudWatch Logs** |
+| Buckets, objects, upload, presigned URLs | Tables, items, scans | Invoke, logs, versions | Task defs, services | Send, receive, purge | Jobs, notebooks, catalog | Encrypt, decrypt | Log groups, streams |
+| | | **EC2** | **ECR** | **SNS** | **MSK/Kafka** | **Secrets Manager** | **CloudWatch Metrics** |
+| | | Instances, security groups, VPCs | Repositories, images | Topics, subscriptions, publish | Brokers, topics | Secrets CRUD | Metrics, dashboards |
 
-Think of it as a sandbox you can break, reset, and walk away from — so you can see how your cloud behaves before any of it is real.
+If Floci doesn't support an operation, Mimir tells you plainly — no cryptic errors, no silent failures.
 
-## What's in the box
+---
 
-Fifteen services with real, clickable UIs:
+## AWS Glue: the star feature
 
-| Area | Services |
-| --- | --- |
-| Storage | **S3** — browse buckets and objects, upload, download, delete |
-| Database | **DynamoDB** — tables, items, scans, a JSON item editor |
-| Compute | **Lambda** (invoke + logs), **EC2** (instances, security groups, VPCs, AMIs) |
-| Containers | **ECS**, **ECR**, **EKS** |
-| Messaging | **SQS** (send/receive/purge), **SNS** (topics, subscriptions, publish) |
-| Analytics | **Glue** (jobs, notebooks, Data Catalog), **MSK / Kafka** |
-| Security | **KMS**, **Secrets Manager**, **SSM Parameter Store** |
-| Observability | **CloudWatch Logs**, **CloudWatch Metrics** |
+Glue gets special treatment because it's more than just table-browsing. Floci handles the **Data Catalog** (databases, tables, schemas). Mimir handles the *execution*:
 
-What's actually available depends on the Floci version you're running. When Floci doesn't support an operation, Mimir tells you plainly instead of throwing a cryptic error.
+- **ETL jobs** in PySpark (via `spark-submit`) or plain Python, with full run history and logs
+- **Notebooks** — interactive sessions with a live, stateful kernel you drive cell by cell
+- **Job configuration** like the real AWS console: Glue version, worker count, timeouts, job parameters, and libraries
+- **Libraries from S3** — point a job at `s3://my-bucket/helpers.py` and it gets pulled and imported at run time
 
-### A note on Glue
+These aren't mock jobs. They actually execute. They just run on Docker containers on your machine instead of a Glue fleet.
 
-Glue gets special treatment because it's more than CRUD. Floci handles the **Data Catalog** (databases, tables, schemas), but it doesn't run jobs or notebooks — so Mimir does that part itself, locally, in Docker:
+---
 
-- **ETL jobs** in PySpark (via `spark-submit`) or plain Python, with run history and full logs.
-- **Notebooks** — interactive sessions with a real, stateful kernel you drive cell by cell.
-- The **Job details** you'd expect from the real console: Glue version, worker type and count, timeouts, job parameters, and library paths (`--extra-py-files`, `--extra-jars`, referenced files, extra pip modules). Point a library at an `s3://` URI and Mimir pulls it straight from your Floci bucket at run time.
+## Get started in 30 seconds
 
-It's not pretending — these jobs genuinely execute. They just run on your machine instead of a Glue fleet.
+### Docker Compose (recommended)
 
-## Getting started
-
-The fastest way is Docker Compose. You'll need Docker (Desktop or Engine) with the Compose plugin.
+Requires **Docker** (Desktop or Engine) with Compose.
 
 ```bash
 git clone https://github.com/tanuj24/mimir.git
@@ -57,27 +54,31 @@ cd mimir
 docker compose up -d
 ```
 
-Give it a moment to pull Floci and build the two Mimir images, then open **http://localhost:8080**.
+Open **http://localhost:8080**.
 
-That single command brings up everything: Floci (the backend), the Mimir API server, and the web console. Floci is left listening on `localhost:4566`, so your existing AWS CLI and SDKs can talk to the exact same backend:
+That one command brings up three services:
+- **Floci** (the backend, port 4566)
+- **Mimir server** (the API proxy + Glue engine)
+- **Mimir web** (the console)
+
+Floci stays on `localhost:4566`, so your existing AWS CLI/SDKs can hit the same backend:
 
 ```bash
 aws --endpoint-url http://localhost:4566 s3 mb s3://hello
 aws --endpoint-url http://localhost:4566 s3 ls
+# Refresh Mimir → your bucket appears
 ```
 
-Create something from the CLI, then hit refresh in Mimir — it'll be there.
-
-When you're done:
+Stop it anytime:
 
 ```bash
-docker compose down      # stop everything, keep your data
-docker compose down -v   # stop and wipe Floci's state
+docker compose down       # keep data
+docker compose down -v    # wipe everything
 ```
 
-## Running it for development
+### Local development
 
-If you want to hack on Mimir itself, run the pieces with hot reload. You'll need Floci up first — either `docker compose up -d floci`, or the [Floci CLI](https://floci.io) (`floci start`).
+If you want to hack on Mimir itself, run the pieces separately with hot reload. You'll need Floci up first — either `docker compose up -d floci`, or the [Floci CLI](https://floci.io): `floci start`.
 
 ```bash
 npm install
@@ -85,55 +86,95 @@ cp .env.example .env
 npm run dev
 ```
 
-The server comes up on `:4000`, the web app on `:5173`. Open **http://localhost:5173**.
+Server comes up on `:4000`, web on `:5173`. Open **http://localhost:5173**.
 
 | Command | What it does |
-| --- | --- |
-| `npm run dev` | Server + web, both with hot reload |
-| `npm run dev:server` / `npm run dev:web` | Just one side |
-| `npm run build` | Type-check and build both for production |
+|---------|-----------|
+| `npm run dev` | Both server + web with hot reload |
+| `npm run dev:server` | Just the server |
+| `npm run dev:web` | Just the web console |
+| `npm run build` | Type-check + build both for production |
 
-## How it fits together
+---
+
+## How it works
 
 ```
-Browser  →  web (nginx, serves the app, proxies /api)
-                 →  server (Express + AWS SDK v3)  →  Floci :4566
-                          └─ Glue engine  →  Docker (Spark / Python containers)
+┌─────────────────────────────────────────────────────────────┐
+│ Your browser                                                │
+│   ↓ http://localhost:5173                                   │
+│ ┌─────────────────────────────────────────────────────────┐ │
+│ │ Mimir Web Console (React + Vite + TanStack Query)       │ │
+│ │   Services sidebar, region picker, resource tables     │ │
+│ │   /api requests → mimir-server:4000                     │ │
+│ └─────────────────────────────────────────────────────────┘ │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ↓
+                ┌──────────────────────┐
+                │ Mimir Server         │
+                │ (Express + AWS SDK)  │
+                │                      │
+                │ • S3, DynamoDB, etc  │ → Floci :4566
+                │ • Glue execution     │
+                │   (Docker engine)    │
+                └──────────────────────┘
+                           │
+                           ↓
+            ┌──────────────────────────┐
+            │ Floci (local AWS)        │
+            │ :4566                    │
+            │                          │
+            │ Real emulation of:       │
+            │ • S3, DynamoDB, SQS, etc │
+            └──────────────────────────┘
 ```
 
-Two workspaces:
+Two npm workspaces:
 
-- **`web/`** — React, Vite, TypeScript, Tailwind, TanStack Query. A single service registry drives the nav, the home page, and the routes.
-- **`server/`** — a thin Express proxy. A small factory points any AWS SDK v3 client at Floci, which keeps each service down to a short route file. It also holds the local Glue execution engine.
+- **`web/`** — React + Vite + TypeScript. A service registry drives navigation and routes. Talks to the server via REST + React Query.
+- **`server/`** — Express proxy + Glue engine. A small factory points any AWS SDK v3 client at Floci. Each service is a thin route module. The Glue engine runs jobs/notebooks in Docker.
 
-Adding a service is deliberately boring: write a route module in `server/src/routes/`, add a page under `web/src/pages/`, and register it in `web/src/services/registry.ts`. That's the whole recipe.
+Adding a service is straightforward: write a route in `server/src/routes/`, add a page under `web/src/pages/`, and register it in `web/src/services/registry.ts`.
+
+---
 
 ## Configuration
 
-Everything is driven by environment variables — see [`.env.example`](.env.example). The ones you're most likely to touch:
+Everything is environment variables — see [`.env.example`](.env.example).
 
-| Variable | Default | What it's for |
-| --- | --- | --- |
-| `FLOCI_ENDPOINT` | `http://localhost:4566` | Where the server finds Floci |
-| `PUBLIC_FLOCI_ENDPOINT` | same as above | The endpoint your browser uses (matters for presigned S3 links) |
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `FLOCI_ENDPOINT` | `http://localhost:4566` | Server-side URL to reach Floci |
+| `PUBLIC_FLOCI_ENDPOINT` | = `FLOCI_ENDPOINT` | Browser-side URL (for presigned S3 links) |
 | `AWS_REGION` | `us-east-1` | Default region |
-| `PORT` | `4000` | The Mimir server port |
-| `GLUE_WORK_DIR` | OS temp dir | Where Glue jobs and notebooks do their work |
-| `GLUE_SPARK_IMAGE` | `spark:python3` | Image used for Spark jobs and kernels |
-| `GLUE_PYTHON_IMAGE` | `python:3.11-slim` | Image used for Python jobs and kernels |
+| `PORT` | `4000` | Server port |
+| `GLUE_WORK_DIR` | OS temp dir | Glue job/notebook temp storage |
+| `GLUE_SPARK_IMAGE` | `spark:python3` | Spark image for jobs + kernels |
+| `GLUE_PYTHON_IMAGE` | `python:3.11-slim` | Python image for jobs + kernels |
 
-## Good to know
+---
 
-- **Glue needs Docker.** Jobs and notebooks spin up containers, so the Docker socket has to be reachable. Compose wires this up for you. The first Spark run pulls the `spark:python3` image, so give it a minute.
-- **The Compose Glue setup shares `/tmp/mimir-glue` between the server container and the host.** That relies on Docker being allowed to share `/tmp` — true on a default Docker Desktop install. If you've locked down file sharing, point `GLUE_WORK_DIR` (and the matching bind mount in `docker-compose.yml`) at a path you do share.
-- **Mimir is for local development and testing.** It's a sandbox, not a stand-in for production AWS, and it doesn't promise byte-for-byte parity with the real services.
+## Things to know
 
-## A bit of housekeeping
+- **Glue needs Docker.** Jobs and notebooks spin up containers. Compose handles this. The first Spark run pulls the `spark:python3` image (~500MB) — give it a minute.
+- **Compose shares `/tmp/mimir-glue` between the server container and your host.** This relies on Docker's default file-sharing setup. If you've locked it down, adjust `GLUE_WORK_DIR` in `docker-compose.yml`.
+- **It's a sandbox, not production.** Mimir is for local iteration, not a drop-in AWS replacement. No promise of byte-for-byte parity.
 
-Mimir is an independent, open-source project. It isn't affiliated with, endorsed by, or sponsored by Amazon Web Services. "AWS" and the service names used throughout are trademarks of Amazon.com, Inc. or its affiliates, and they appear here only to describe what Mimir talks to.
+---
 
-The local cloud backend is [Floci](https://floci.io), which is its own MIT-licensed project — have a look at its license and docs if you're curious about what's happening under the hood.
+## The fine print
+
+**Mimir** is an independent, open-source project. It is **not** affiliated with, endorsed by, or sponsored by Amazon Web Services. "AWS" and AWS service names are trademarks of Amazon.com, Inc. and appear here only to describe what Mimir emulates.
+
+The local cloud backend is **[Floci](https://floci.io)**, which is its own MIT-licensed project — check out its repo if you're curious how the emulation works.
+
+---
 
 ## License
 
-[MIT](LICENSE). Use it, fork it, build on it.
+[MIT](LICENSE). Use it, fork it, build on it. No strings.
+
+---
+
+**Built to see your cloud, before you ship your cloud.**
