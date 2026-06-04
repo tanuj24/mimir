@@ -1,20 +1,122 @@
 import { Router } from "express";
+import multer from "multer";
+import AdmZip from "adm-zip";
 import {
   LambdaClient,
+  CreateFunctionCommand,
   ListFunctionsCommand,
   GetFunctionCommand,
   DeleteFunctionCommand,
   InvokeCommand,
   ListAliasesCommand,
+  waitUntilFunctionActiveV2,
 } from "@aws-sdk/client-lambda";
 import { makeClient } from "../aws/clientFactory.js";
 import { asyncHandler, regionOf } from "../lib/http.js";
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 function client(req: { header(n: string): string | undefined }) {
   return makeClient(LambdaClient, { region: regionOf(req as never) });
 }
 
+/**
+ * Picks a source filename + a working starter handler for inline code, based on
+ * the chosen runtime and handler string (e.g. "index.handler" → file "index").
+ */
+function inlineTemplate(runtime: string, handler: string): { filename: string; body: string } {
+  const moduleName = (handler.split(".")[0] || "index").trim();
+  if (runtime.startsWith("python")) {
+    const fn = handler.split(".")[1] || "lambda_handler";
+    return {
+      filename: `${moduleName || "lambda_function"}.py`,
+      body: `def ${fn}(event, context):\n    return {"statusCode": 200, "body": "Hello from Lambda!"}\n`,
+    };
+  }
+  // default: Node.js (ESM .mjs so "export const handler" works out of the box)
+  const fn = handler.split(".")[1] || "handler";
+  return {
+    filename: `${moduleName || "index"}.mjs`,
+    body: `export const ${fn} = async (event) => {\n  return { statusCode: 200, body: "Hello from Lambda!" };\n};\n`,
+  };
+}
+
 export const lambdaRouter = Router();
+
+// Create a function. Accepts either an uploaded .zip ("file") or inline source
+// ("code"), which we zip on the fly. multipart/form-data so a zip can ride along.
+lambdaRouter.post(
+  "/functions",
+  upload.single("file"),
+  asyncHandler(async (req, res) => {
+    const {
+      name,
+      runtime,
+      handler,
+      role,
+      memorySize,
+      timeout,
+      code,
+      environment,
+    } = req.body as {
+      name?: string;
+      runtime?: string;
+      handler?: string;
+      role?: string;
+      memorySize?: string;
+      timeout?: string;
+      code?: string;
+      environment?: string;
+    };
+
+    if (!name) return res.status(400).json({ error: { code: "BadRequest", message: "name is required" } });
+    const rt = runtime || "nodejs20.x";
+    const hdl = handler || (rt.startsWith("python") ? "lambda_function.lambda_handler" : "index.handler");
+
+    // Resolve the code zip: uploaded file wins, else zip the inline source.
+    let zipBuffer: Buffer;
+    if (req.file) {
+      zipBuffer = req.file.buffer;
+    } else {
+      const tmpl = inlineTemplate(rt, hdl);
+      const zip = new AdmZip();
+      zip.addFile(tmpl.filename, Buffer.from(code && code.trim() ? code : tmpl.body, "utf-8"));
+      zipBuffer = zip.toBuffer();
+    }
+
+    let envVars: Record<string, string> | undefined;
+    if (environment) {
+      try {
+        const parsed = JSON.parse(environment);
+        if (parsed && typeof parsed === "object") envVars = parsed as Record<string, string>;
+      } catch {
+        return res.status(400).json({ error: { code: "BadRequest", message: "environment must be valid JSON" } });
+      }
+    }
+
+    const c = client(req);
+    const out = await c.send(
+      new CreateFunctionCommand({
+        FunctionName: name,
+        Runtime: rt as never,
+        Handler: hdl,
+        Role: role || "arn:aws:iam::000000000000:role/lambda-role",
+        Code: { ZipFile: zipBuffer },
+        MemorySize: memorySize ? Number(memorySize) : 128,
+        Timeout: timeout ? Number(timeout) : 3,
+        Environment: envVars ? { Variables: envVars } : undefined,
+      }),
+    );
+
+    // Best-effort wait so the function is invokable by the time the UI refreshes.
+    await waitUntilFunctionActiveV2(
+      { client: c, maxWaitTime: 30 },
+      { FunctionName: name },
+    ).catch(() => undefined);
+
+    res.status(201).json({ name: out.FunctionName, arn: out.FunctionArn, state: out.State });
+  }),
+);
 
 lambdaRouter.get(
   "/functions",

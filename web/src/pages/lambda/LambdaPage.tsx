@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Zap, RefreshCw, Trash2, Play } from "lucide-react";
+import { Zap, RefreshCw, Trash2, Play, Plus } from "lucide-react";
 import { lambdaApi, type LambdaFn, type InvokeResult } from "./lambdaApi";
 import { formatBytes, formatDate } from "@/lib/format";
 import {
@@ -15,6 +15,194 @@ import {
   useToast,
   type Column,
 } from "@/components/ui";
+
+const RUNTIMES = [
+  "nodejs20.x",
+  "nodejs18.x",
+  "python3.12",
+  "python3.11",
+  "python3.9",
+];
+
+function runtimeDefaults(runtime: string): { handler: string; code: string } {
+  if (runtime.startsWith("python")) {
+    return {
+      handler: "lambda_function.lambda_handler",
+      code: `def lambda_handler(event, context):\n    return {"statusCode": 200, "body": "Hello from Lambda!"}\n`,
+    };
+  }
+  return {
+    handler: "index.handler",
+    code: `export const handler = async (event) => {\n  return { statusCode: 200, body: "Hello from Lambda!" };\n};\n`,
+  };
+}
+
+function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const qc = useQueryClient();
+  const { notify } = useToast();
+  const [name, setName] = useState("");
+  const [runtime, setRuntime] = useState("nodejs20.x");
+  const [handler, setHandler] = useState(runtimeDefaults("nodejs20.x").handler);
+  const [code, setCode] = useState(runtimeDefaults("nodejs20.x").code);
+  const [memorySize, setMemorySize] = useState(128);
+  const [timeout, setTimeout] = useState(3);
+  const [file, setFile] = useState<File | null>(null);
+  const [touchedCode, setTouchedCode] = useState(false);
+
+  function reset() {
+    setName("");
+    setRuntime("nodejs20.x");
+    setHandler(runtimeDefaults("nodejs20.x").handler);
+    setCode(runtimeDefaults("nodejs20.x").code);
+    setMemorySize(128);
+    setTimeout(3);
+    setFile(null);
+    setTouchedCode(false);
+  }
+
+  function pickRuntime(rt: string) {
+    setRuntime(rt);
+    const d = runtimeDefaults(rt);
+    setHandler(d.handler);
+    // Only overwrite the editor if the user hasn't customized it.
+    if (!touchedCode) setCode(d.code);
+  }
+
+  const create = useMutation({
+    mutationFn: () =>
+      lambdaApi.create({
+        name: name.trim(),
+        runtime,
+        handler: handler.trim(),
+        memorySize,
+        timeout,
+        code: file ? undefined : code,
+        file,
+      }),
+    onSuccess: () => {
+      notify("success", `Function "${name}" created`);
+      qc.invalidateQueries({ queryKey: ["lambda", "functions"] });
+      reset();
+      onClose();
+    },
+    onError: (e: Error) => notify("error", e.message),
+  });
+
+  return (
+    <Modal
+      open={open}
+      title="Create function"
+      onClose={onClose}
+      wide
+      footer={
+        <>
+          <button className="btn-default" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            className="btn-primary"
+            disabled={create.isPending || !name.trim()}
+            onClick={() => create.mutate()}
+          >
+            {create.isPending ? "Creating…" : "Create function"}
+          </button>
+        </>
+      }
+    >
+      <div className="space-y-3">
+        <div>
+          <label className="label">Function name</label>
+          <input
+            className="input"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="my-function"
+            autoFocus
+          />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Runtime</label>
+            <select className="input" value={runtime} onChange={(e) => pickRuntime(e.target.value)}>
+              {RUNTIMES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Handler</label>
+            <input className="input" value={handler} onChange={(e) => setHandler(e.target.value)} />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="label">Memory (MB)</label>
+            <input
+              type="number"
+              className="input"
+              value={memorySize}
+              min={128}
+              step={64}
+              onChange={(e) => setMemorySize(Number(e.target.value))}
+            />
+          </div>
+          <div>
+            <label className="label">Timeout (s)</label>
+            <input
+              type="number"
+              className="input"
+              value={timeout}
+              min={1}
+              onChange={(e) => setTimeout(Number(e.target.value))}
+            />
+          </div>
+        </div>
+
+        {file ? (
+          <div className="flex items-center justify-between rounded border border-line bg-canvas px-3 py-2 text-sm">
+            <span>
+              Deploying from <strong>{file.name}</strong> ({formatBytes(file.size)})
+            </span>
+            <button className="link" onClick={() => setFile(null)}>
+              Remove
+            </button>
+          </div>
+        ) : (
+          <div>
+            <label className="label">Code</label>
+            <textarea
+              className="input min-h-[160px] font-mono text-xs"
+              value={code}
+              spellCheck={false}
+              onChange={(e) => {
+                setCode(e.target.value);
+                setTouchedCode(true);
+              }}
+            />
+          </div>
+        )}
+
+        <div className="text-xs text-ink-500">
+          {file ? (
+            "Using your uploaded deployment package."
+          ) : (
+            <label className="link cursor-pointer">
+              Or upload a .zip deployment package
+              <input
+                type="file"
+                accept=".zip"
+                hidden
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+}
 
 function InvokeModal({ fn, onClose }: { fn: LambdaFn | null; onClose: () => void }) {
   const [payload, setPayload] = useState("{}");
@@ -82,6 +270,7 @@ export function LambdaPage() {
   const { notify } = useToast();
   const [invokeFn, setInvokeFn] = useState<LambdaFn | null>(null);
   const [toDelete, setToDelete] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const { data, isLoading, error, refetch, isFetching } = useQuery({
     queryKey: ["lambda", "functions"],
@@ -136,9 +325,14 @@ export function LambdaPage() {
         subtitle="Functions"
         crumbs={[{ label: "Console Home", to: "/" }, { label: "Lambda" }]}
         actions={
-          <button className="btn-default" onClick={() => refetch()}>
-            <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
-          </button>
+          <>
+            <button className="btn-default" onClick={() => refetch()}>
+              <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+            </button>
+            <button className="btn-primary" onClick={() => setCreateOpen(true)}>
+              <Plus className="h-4 w-4" /> Create function
+            </button>
+          </>
         }
       />
       <div className="card">
@@ -155,13 +349,14 @@ export function LambdaPage() {
               <EmptyState
                 icon={Zap}
                 title="No functions"
-                description="Deploy a function with the AWS CLI or SDK against Floci, then invoke it here."
+                description="Create a function with the button above, or deploy one with the AWS CLI/SDK against Floci."
               />
             }
           />
         )}
       </div>
 
+      <CreateModal open={createOpen} onClose={() => setCreateOpen(false)} />
       <InvokeModal fn={invokeFn} onClose={() => setInvokeFn(null)} />
       <ConfirmDialog
         open={!!toDelete}

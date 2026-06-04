@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   KafkaClient,
+  CreateClusterV2Command,
   ListClustersV2Command,
   DescribeClusterV2Command,
   DeleteClusterCommand,
@@ -14,6 +15,36 @@ function client(req: { header(n: string): string | undefined }) {
 }
 
 export const kafkaRouter = Router();
+
+// Create a provisioned MSK cluster. Subnets/security groups are placeholders —
+// Floci doesn't enforce real VPC wiring, so sensible defaults keep the UI simple.
+kafkaRouter.post(
+  "/clusters",
+  asyncHandler(async (req, res) => {
+    const { name, kafkaVersion, brokers, instanceType } = req.body as {
+      name?: string;
+      kafkaVersion?: string;
+      brokers?: number;
+      instanceType?: string;
+    };
+    if (!name) return res.status(400).json({ error: { code: "BadRequest", message: "name is required" } });
+    const numberOfBrokers = brokers && brokers > 0 ? brokers : 1;
+    const out = await client(req).send(
+      new CreateClusterV2Command({
+        ClusterName: name,
+        Provisioned: {
+          KafkaVersion: kafkaVersion || "3.5.1",
+          NumberOfBrokerNodes: numberOfBrokers,
+          BrokerNodeGroupInfo: {
+            InstanceType: instanceType || "kafka.m5.large",
+            ClientSubnets: ["subnet-mimir-a", "subnet-mimir-b"],
+          },
+        },
+      }),
+    );
+    res.status(201).json({ name: out.ClusterName, arn: out.ClusterArn, state: out.State });
+  }),
+);
 
 kafkaRouter.get(
   "/clusters",
