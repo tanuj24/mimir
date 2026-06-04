@@ -188,4 +188,10 @@ The local cloud backend is **[Floci](https://floci.io)**, which is its own MIT-l
 
 ---
 
+## Support
+
+Building and maintaining Mimir takes time. If it's helping you test cloud infrastructure locally, consider [supporting the project on Open Collective](https://opencollective.com/tanuj). Your support helps keep development going. ☕
+
+---
+
 **See your cloud, before you ship your cloud.**
