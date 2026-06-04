@@ -55,7 +55,7 @@ export function BucketDetailPage() {
   }
 
   const upload = useMutation({
-    mutationFn: (files: FileList) => s3Api.upload(bucket, prefix, files),
+    mutationFn: (files: File[]) => s3Api.upload(bucket, prefix, files),
     onSuccess: (r: { uploaded: string[] }) => {
       notify("success", `Uploaded ${r.uploaded.length} object(s)`);
       qc.invalidateQueries({ queryKey });
@@ -195,7 +195,11 @@ export function BucketDetailPage() {
               multiple
               hidden
               onChange={(e) => {
-                if (e.target.files?.length) upload.mutate(e.target.files);
+                // Snapshot the files before clearing the input — the FileList is
+                // live, so resetting e.target.value empties it before the async
+                // upload can read it.
+                const files = e.target.files ? Array.from(e.target.files) : [];
+                if (files.length) upload.mutate(files);
                 e.target.value = "";
               }}
             />

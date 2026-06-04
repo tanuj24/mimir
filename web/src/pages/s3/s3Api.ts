@@ -47,10 +47,10 @@ export const s3Api = {
   createFolder: (bucket: string, key: string) =>
     api.post(`/s3/buckets/${encodeURIComponent(bucket)}/folders`, { key }),
 
-  upload: (bucket: string, prefix: string, files: FileList) => {
+  upload: (bucket: string, prefix: string, files: File[]) => {
     const form = new FormData();
     form.set("prefix", prefix);
-    Array.from(files).forEach((f) => form.append("files", f));
+    files.forEach((f) => form.append("files", f));
     return api.upload(`/s3/buckets/${encodeURIComponent(bucket)}/objects`, form);
   },
 
