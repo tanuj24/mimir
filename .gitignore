@@ -1,0 +1,61 @@
+# ---- Dependencies ----
+node_modules/
+.pnp
+.pnp.js
+.npm/
+.pnpm-store/
+.yarn/
+
+# ---- Build output ----
+dist/
+build/
+out/
+*.tsbuildinfo
+
+# ---- Vite / bundler caches ----
+.vite/
+.turbo/
+.cache/
+.parcel-cache/
+.eslintcache
+
+# ---- Environment / secrets ----
+.env
+.env.*
+!.env.example
+
+# ---- Logs ----
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ---- Test / coverage ----
+coverage/
+.nyc_output/
+
+# ---- Mimir runtime state (Glue jobs/runs + local work dir) ----
+.glue-state.json
+.mimir/
+
+# ---- Claude Code local settings (machine-specific) ----
+.claude/settings.local.json
+
+# ---- Editors / IDEs ----
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# ---- OS cruft ----
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini

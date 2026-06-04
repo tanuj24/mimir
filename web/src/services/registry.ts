@@ -1,0 +1,246 @@
+import type { LucideIcon } from "lucide-react";
+import {
+  Database,
+  HardDrive,
+  Zap,
+  Send,
+  Bell,
+  ScrollText,
+  Activity,
+  KeyRound,
+  Lock,
+  Settings2,
+  Server,
+  Boxes,
+  Container,
+  Network,
+  Workflow,
+  Radio,
+} from "lucide-react";
+
+export type ServiceCategory =
+  | "Storage"
+  | "Database"
+  | "Compute"
+  | "Containers"
+  | "Application Integration"
+  | "Analytics"
+  | "Management & Governance"
+  | "Security, Identity & Compliance";
+
+export interface ServiceDef {
+  id: string;
+  name: string;
+  /** Short label used in the sidebar. */
+  short: string;
+  category: ServiceCategory;
+  description: string;
+  icon: LucideIcon;
+  /** Accent color (hex) for the service tile/icon. */
+  color: string;
+  /** Route base, e.g. "/s3". */
+  path: string;
+  /** Whether the UI for this service is implemented yet. */
+  available: boolean;
+}
+
+export const SERVICES: ServiceDef[] = [
+  {
+    id: "s3",
+    name: "Amazon S3",
+    short: "S3",
+    category: "Storage",
+    description: "Scalable object storage — buckets and objects.",
+    icon: HardDrive,
+    color: "#1d8102",
+    path: "/s3",
+    available: true,
+  },
+  {
+    id: "dynamodb",
+    name: "Amazon DynamoDB",
+    short: "DynamoDB",
+    category: "Database",
+    description: "Managed NoSQL key-value and document database.",
+    icon: Database,
+    color: "#2e27ad",
+    path: "/dynamodb",
+    available: true,
+  },
+  {
+    id: "lambda",
+    name: "AWS Lambda",
+    short: "Lambda",
+    category: "Compute",
+    description: "Run code without provisioning servers.",
+    icon: Zap,
+    color: "#ed7100",
+    path: "/lambda",
+    available: true,
+  },
+  {
+    id: "sqs",
+    name: "Amazon SQS",
+    short: "SQS",
+    category: "Application Integration",
+    description: "Fully managed message queuing.",
+    icon: Send,
+    color: "#e7157b",
+    path: "/sqs",
+    available: true,
+  },
+  {
+    id: "sns",
+    name: "Amazon SNS",
+    short: "SNS",
+    category: "Application Integration",
+    description: "Pub/sub messaging and notifications.",
+    icon: Bell,
+    color: "#e7157b",
+    path: "/sns",
+    available: true,
+  },
+  {
+    id: "logs",
+    name: "CloudWatch Logs",
+    short: "Logs",
+    category: "Management & Governance",
+    description: "Centralized log groups and streams.",
+    icon: ScrollText,
+    color: "#e7157b",
+    path: "/logs",
+    available: true,
+  },
+  {
+    id: "metrics",
+    name: "CloudWatch Metrics",
+    short: "Metrics",
+    category: "Management & Governance",
+    description: "Operational metrics and dashboards.",
+    icon: Activity,
+    color: "#e7157b",
+    path: "/metrics",
+    available: true,
+  },
+  {
+    id: "kms",
+    name: "AWS KMS",
+    short: "KMS",
+    category: "Security, Identity & Compliance",
+    description: "Create and control encryption keys.",
+    icon: KeyRound,
+    color: "#dd344c",
+    path: "/kms",
+    available: true,
+  },
+  {
+    id: "secrets",
+    name: "Secrets Manager",
+    short: "Secrets",
+    category: "Security, Identity & Compliance",
+    description: "Store, rotate and retrieve secrets.",
+    icon: Lock,
+    color: "#dd344c",
+    path: "/secrets",
+    available: true,
+  },
+  {
+    id: "ssm",
+    name: "Systems Manager",
+    short: "SSM Parameters",
+    category: "Management & Governance",
+    description: "Parameter Store for config and secrets.",
+    icon: Settings2,
+    color: "#e7157b",
+    path: "/ssm",
+    available: true,
+  },
+  {
+    id: "ec2",
+    name: "Amazon EC2",
+    short: "EC2",
+    category: "Compute",
+    description: "Virtual servers, AMIs, security groups.",
+    icon: Server,
+    color: "#ed7100",
+    path: "/ec2",
+    available: true,
+  },
+  {
+    id: "ecs",
+    name: "Amazon ECS",
+    short: "ECS",
+    category: "Containers",
+    description: "Run and scale containerized apps.",
+    icon: Boxes,
+    color: "#ed7100",
+    path: "/ecs",
+    available: true,
+  },
+  {
+    id: "ecr",
+    name: "Amazon ECR",
+    short: "ECR",
+    category: "Containers",
+    description: "Private container image registry.",
+    icon: Container,
+    color: "#ed7100",
+    path: "/ecr",
+    available: true,
+  },
+  {
+    id: "eks",
+    name: "Amazon EKS",
+    short: "EKS",
+    category: "Containers",
+    description: "Managed Kubernetes clusters.",
+    icon: Network,
+    color: "#ed7100",
+    path: "/eks",
+    available: true,
+  },
+  {
+    id: "glue",
+    name: "AWS Glue",
+    short: "Glue",
+    category: "Analytics",
+    description: "ETL jobs (Spark/Python), notebooks, and the Data Catalog.",
+    icon: Workflow,
+    color: "#8c4fff",
+    path: "/glue",
+    available: true,
+  },
+  {
+    id: "kafka",
+    name: "Amazon MSK",
+    short: "MSK / Kafka",
+    category: "Analytics",
+    description: "Managed streaming for Apache Kafka.",
+    icon: Radio,
+    color: "#8c4fff",
+    path: "/kafka",
+    available: true,
+  },
+];
+
+export const CATEGORY_ORDER: ServiceCategory[] = [
+  "Storage",
+  "Compute",
+  "Containers",
+  "Database",
+  "Application Integration",
+  "Analytics",
+  "Security, Identity & Compliance",
+  "Management & Governance",
+];
+
+export function servicesByCategory(): Record<ServiceCategory, ServiceDef[]> {
+  const map = {} as Record<ServiceCategory, ServiceDef[]>;
+  for (const cat of CATEGORY_ORDER) map[cat] = [];
+  for (const svc of SERVICES) map[svc.category].push(svc);
+  return map;
+}
+
+export function getService(id: string): ServiceDef | undefined {
+  return SERVICES.find((s) => s.id === id);
+}

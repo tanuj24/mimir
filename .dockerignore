@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/build
+.git
+.github
+*.log
+.DS_Store
+.env
+.env.local
+.glue-state.json
+.mimir
+**/.vite
+**/*.tsbuildinfo
+README.md
