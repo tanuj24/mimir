@@ -7,7 +7,7 @@ import { errorHandler } from "./lib/http.js";
 const app = express();
 
 app.use(cors());
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "10mb", type: "application/json" }));
 
 // Health + environment info for the UI's connection indicator.
 app.get("/api/health", async (_req, res) => {
