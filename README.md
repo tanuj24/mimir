@@ -1,89 +1,19 @@
-<div align="center">
+<p align="center">
+  <img src="brand/hero-banner.svg" alt="Mimir - Mimic & Run" width="700" />
+</p>
 
-<svg viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg" width="100%" style="max-width: 900px; margin: 30px 0;">
-  <defs>
-    <style>
-      .cloud-ring { opacity: 0.6; transform-origin: center; }
-      .ring-1 { animation: ringPulse 3s ease-in-out infinite; }
-      .ring-2 { animation: ringPulse 3s ease-in-out 0.2s infinite; }
-      .ring-3 { animation: ringPulse 3s ease-in-out 0.4s infinite; }
-      .ring-4 { animation: ringPulse 3s ease-in-out 0.6s infinite; }
-      @keyframes ringPulse { 0%, 100% { transform: scale(1); opacity: 0.3; } 50% { transform: scale(1.08); opacity: 0.8; } }
-      .arrow-path { fill: none; stroke: #ff9500; stroke-width: 28; stroke-linecap: round; stroke-linejoin: round; }
-      .arrow-1 { animation: flowUp 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite; }
-      .arrow-2 { animation: flowUp 2.5s cubic-bezier(0.4, 0, 0.2, 1) 0.4s infinite; }
-      .arrow-3 { animation: flowUp 2.5s cubic-bezier(0.4, 0, 0.2, 1) 0.8s infinite; }
-      .arrow-4 { animation: flowUp 2.5s cubic-bezier(0.4, 0, 0.2, 1) 1.2s infinite; }
-      @keyframes flowUp { 0% { stroke-dashoffset: 300; opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
-      .terminal-icon { filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.6)); animation: iconGlow 2s ease-in-out infinite; }
-      @keyframes iconGlow { 0%, 100% { filter: drop-shadow(0 0 20px rgba(59, 130, 246, 0.4)); } 50% { filter: drop-shadow(0 0 40px rgba(59, 130, 246, 0.8)); } }
-      .dot { animation: dotFloat 3s ease-in-out infinite; }
-      .dot-1 { animation-delay: 0s; }
-      .dot-2 { animation-delay: 0.3s; }
-      .dot-3 { animation-delay: 0.6s; }
-      .dot-4 { animation-delay: 0.9s; }
-      @keyframes dotFloat { 0%, 100% { transform: translateY(0) scale(1); opacity: 0.3; } 50% { transform: translateY(-8px) scale(1.2); opacity: 0.8; } }
-      .wordmark { opacity: 0; animation: fadeInScale 1.2s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-      .tagline { opacity: 0; animation: fadeIn 1.5s ease-out 0.6s forwards; }
-      @keyframes fadeInScale { 0% { opacity: 0; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1); } }
-      @keyframes fadeIn { 0% { opacity: 0; } 100% { opacity: 1; } }
-    </style>
-    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#0f1b2d"/>
-      <stop offset="100%" stop-color="#0a0f1f"/>
-    </linearGradient>
-    <radialGradient id="glowGrad" cx="50%" cy="35%" r="60%">
-      <stop offset="0%" stop-color="#1f4a6d" stop-opacity="0.3"/>
-      <stop offset="100%" stop-color="#0a0f1f" stop-opacity="0"/>
-    </radialGradient>
-    <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
-      <path d="M 60 0 L 0 0 0 60" fill="none" stroke="#3f82c4" stroke-width="1"/>
-    </pattern>
-  </defs>
+<p align="center">
+  <strong>See your cloud, before you ship your cloud.</strong><br />
+  A local AWS sandbox for building and testing cloud infrastructure locally — no AWS account, no bill, no internet required.
+</p>
 
-  <rect width="1600" height="900" fill="url(#bgGrad)"/>
-  <rect width="1600" height="900" fill="url(#glowGrad)"/>
-  <g opacity="0.05">
-    <rect width="1600" height="900" fill="url(#grid)"/>
-  </g>
-
-  <g transform="translate(800, 300)">
-    <circle class="cloud-ring ring-1" cx="0" cy="0" r="180" fill="none" stroke="#3f82c4" stroke-width="35"/>
-    <circle class="cloud-ring ring-2" cx="0" cy="0" r="120" fill="none" stroke="#3f82c4" stroke-width="32"/>
-    <circle class="cloud-ring ring-3" cx="0" cy="0" r="240" fill="none" stroke="#3f82c4" stroke-width="28" opacity="0.4"/>
-    <circle class="cloud-ring ring-4" cx="0" cy="0" r="80" fill="none" stroke="#3f82c4" stroke-width="24"/>
-    <path class="arrow-path arrow-1" d="M -200,-100 Q -150,-180 -80,-200 L -50,-200 L -80,-230 L -110,-200" stroke-dasharray="300" stroke-dashoffset="300"/>
-    <path class="arrow-path arrow-2" d="M 200,-100 Q 150,-180 80,-200 L 50,-200 L 80,-230 L 110,-200" stroke-dasharray="300" stroke-dashoffset="300"/>
-    <path class="arrow-path arrow-3" d="M -180,180 Q -120,220 -40,240 L 0,250 L -30,280 L -60,250" stroke-dasharray="300" stroke-dashoffset="300"/>
-    <path class="arrow-path arrow-4" d="M 180,180 Q 120,220 40,240 L 0,250 L 30,280 L 60,250" stroke-dasharray="300" stroke-dashoffset="300"/>
-    <g class="terminal-icon">
-      <rect x="-60" y="-60" width="120" height="120" rx="20" fill="#3f82c4"/>
-      <g transform="translate(-30, -15)">
-        <polyline points="20,10 40,30 20,50" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
-      </g>
-      <line x1="-10" y1="25" x2="30" y2="25" stroke="white" stroke-width="6" stroke-linecap="round"/>
-    </g>
-    <circle class="dot dot-1" cx="-280" cy="-120" r="8" fill="#ff9500"/>
-    <circle class="dot dot-2" cx="280" cy="-120" r="8" fill="#ff9500"/>
-    <circle class="dot dot-3" cx="-260" cy="220" r="8" fill="#ff9500"/>
-    <circle class="dot dot-4" cx="260" cy="220" r="8" fill="#ff9500"/>
-  </g>
-
-  <text class="wordmark" x="800" y="680" font-family="'Inter', '-apple-system', sans-serif" font-size="140" font-weight="900" fill="white" text-anchor="middle" letter-spacing="-3">MIMIR</text>
-  <text x="800" y="760" font-family="'Inter', '-apple-system', sans-serif" font-size="36" font-weight="300" fill="#9aafcd" text-anchor="middle" letter-spacing="2">Mimic & Run</text>
-  <text class="tagline" x="800" y="830" font-family="'Inter', '-apple-system', sans-serif" font-size="32" font-weight="300" fill="#cbd5e1" text-anchor="middle" letter-spacing="0.5">See your cloud, before you ship your cloud.</text>
-
-  <g opacity="0.15">
-    <polygon points="1350,150 1358,170 1380,170 1363,183 1370,203 1350,190 1330,203 1337,183 1320,170 1342,170" fill="#ff9500"/>
-    <polygon points="200,750 206,765 222,765 209,775 215,790 200,780 185,790 191,775 178,765 194,765" fill="#3f82c4"/>
-  </g>
-</svg>
+<p align="center">
+  <a href="#"><img src="https://img.shields.io/badge/license-MIT-0d94d9.svg" alt="License: MIT"></a>
+  ·
+  <a href="https://floci.io"><img src="https://img.shields.io/badge/powered%20by-Floci-ec7211" alt="Powered by Floci"></a>
+</p>
 
 ---
-
-[![License: MIT](https://img.shields.io/badge/license-MIT-0d94d9.svg)](LICENSE) · [Powered by Floci](https://floci.io)
-
-</div>
 
 ---
 
