@@ -35,6 +35,8 @@ services:
       AWS_SECRET_ACCESS_KEY: mimir
       PORT: "4000"
       GLUE_WORK_DIR: /tmp/mimir-glue
+    ports:
+      - "4000:4000"
     volumes:
       # Launch Glue job/notebook containers on the host daemon…
       - /var/run/docker.sock:/var/run/docker.sock
