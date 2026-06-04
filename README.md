@@ -1,8 +1,53 @@
 <div align="center">
 
-![Mimir Banner](./brand/banner.svg)
+<svg width="280" height="210" viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" style="margin: 20px 0;">
+  <defs>
+    <linearGradient id="cloudGradientLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4dd9ff"/>
+      <stop offset="100%" stop-color="#36d5c0"/>
+    </linearGradient>
+    <linearGradient id="cloudGradientRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#36d5c0"/>
+      <stop offset="100%" stop-color="#0d94d9"/>
+    </linearGradient>
+    <linearGradient id="checkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4dd9ff"/>
+      <stop offset="100%" stop-color="#0d94d9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Cloud: Left side (cyan-mint) -->
+  <ellipse cx="110" cy="140" rx="65" ry="55" fill="url(#cloudGradientLeft)"/>
+  <circle cx="70" cy="130" r="45" fill="url(#cloudGradientLeft)"/>
+  <circle cx="95" cy="95" r="52" fill="url(#cloudGradientLeft)"/>
+
+  <!-- Cloud: Right side (mint-blue) -->
+  <ellipse cx="290" cy="140" rx="65" ry="55" fill="url(#cloudGradientRight)"/>
+  <circle cx="330" cy="130" r="45" fill="url(#cloudGradientRight)"/>
+  <circle cx="305" cy="95" r="52" fill="url(#cloudGradientRight)"/>
+
+  <!-- Cloud shine -->
+  <ellipse cx="200" cy="100" rx="120" ry="45" fill="white" opacity="0.15"/>
+
+  <!-- Checkmark -->
+  <polyline points="160,150 190,180 220,140" fill="none" stroke="url(#checkGradient)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="220,140 260,100 300,60" fill="none" stroke="url(#checkGradient)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Shadow -->
+  <ellipse cx="200" cy="220" rx="140" ry="20" fill="#000" opacity="0.08"/>
+</svg>
+
+# **Mimir**
+
+### See your cloud, before you ship your cloud.
+
+A local AWS sandbox running on your machine. Build and test cloud infrastructure locally — no AWS account, no bill, no internet required.
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-0d94d9.svg)](LICENSE) · [Powered by Floci](https://floci.io)
 
 </div>
+
+---
 
 ## What is Mimir?
 
@@ -177,4 +222,4 @@ The local cloud backend is **[Floci](https://floci.io)**, which is its own MIT-l
 
 ---
 
-**Built to see your cloud, before you ship your cloud.**
+**See your cloud, before you ship your cloud.**
