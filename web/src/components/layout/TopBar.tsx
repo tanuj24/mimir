@@ -131,8 +131,31 @@ export function TopBar() {
   useEffect(() => {}, []);
   return (
     <header className="sticky top-0 z-40 flex h-12 items-center gap-3 bg-squid-600 px-3 text-white">
-      <Link to="/" className="flex items-center gap-2 pr-1">
-        <span className="grid h-7 w-7 place-items-center rounded bg-floci font-bold">M</span>
+      <Link to="/" className="flex items-center gap-2 pr-1 transition-opacity hover:opacity-80">
+        <svg className="h-7 w-7" viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="topbar-lg1" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#4dd9ff"/>
+              <stop offset="100%" stopColor="#36d5c0"/>
+            </linearGradient>
+            <linearGradient id="topbar-lg2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#36d5c0"/>
+              <stop offset="100%" stopColor="#0d94d9"/>
+            </linearGradient>
+            <linearGradient id="topbar-cg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#4dd9ff"/>
+              <stop offset="100%" stopColor="#0d94d9"/>
+            </linearGradient>
+          </defs>
+          <ellipse cx="55" cy="70" rx="32" ry="28" fill="url(#topbar-lg1)"/>
+          <circle cx="35" cy="65" r="22" fill="url(#topbar-lg1)"/>
+          <circle cx="47" cy="48" r="26" fill="url(#topbar-lg1)"/>
+          <ellipse cx="145" cy="70" rx="32" ry="28" fill="url(#topbar-lg2)"/>
+          <circle cx="165" cy="65" r="22" fill="url(#topbar-lg2)"/>
+          <circle cx="153" cy="48" r="26" fill="url(#topbar-lg2)"/>
+          <polyline points="80,75 95,90 110,70" fill="none" stroke="url(#topbar-cg)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"/>
+          <polyline points="110,70 130,50 150,30" fill="none" stroke="url(#topbar-cg)" strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
         <span className="hidden font-semibold sm:inline">Mimir</span>
       </Link>
       <a

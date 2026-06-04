@@ -1,5 +1,30 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="6" fill="#ec7211"/>
-  <path d="M9 21V11l7 4 7-4v10l-7 4-7-4z" fill="#fff" opacity="0.95"/>
-  <path d="M16 15v10l7-4V11l-7 4z" fill="#fff" opacity="0.6"/>
+<svg viewBox="0 0 200 150" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cloudGradientLeft" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4dd9ff"/>
+      <stop offset="100%" stop-color="#36d5c0"/>
+    </linearGradient>
+    <linearGradient id="cloudGradientRight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#36d5c0"/>
+      <stop offset="100%" stop-color="#0d94d9"/>
+    </linearGradient>
+    <linearGradient id="checkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#4dd9ff"/>
+      <stop offset="100%" stop-color="#0d94d9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Cloud: Left side -->
+  <ellipse cx="55" cy="70" rx="32" ry="28" fill="url(#cloudGradientLeft)"/>
+  <circle cx="35" cy="65" r="22" fill="url(#cloudGradientLeft)"/>
+  <circle cx="47" cy="48" r="26" fill="url(#cloudGradientLeft)"/>
+
+  <!-- Cloud: Right side -->
+  <ellipse cx="145" cy="70" rx="32" ry="28" fill="url(#cloudGradientRight)"/>
+  <circle cx="165" cy="65" r="22" fill="url(#cloudGradientRight)"/>
+  <circle cx="153" cy="48" r="26" fill="url(#cloudGradientRight)"/>
+
+  <!-- Checkmark -->
+  <polyline points="80,75 95,90 110,70" fill="none" stroke="url(#checkGradient)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <polyline points="110,70 130,50 150,30" fill="none" stroke="url(#checkGradient)" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
