@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="brand/hero-banner.svg" alt="Mimir - Mimic & Run" width="700" />
+  <img src="brand/hero-banner-static.svg" alt="Mimir - Mimic & Run" width="700" />
 </p>
 
 <p align="center">
