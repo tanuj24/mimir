@@ -3,6 +3,7 @@ import cors from "cors";
 import { config } from "./config.js";
 import { apiRouter } from "./routes/index.js";
 import { errorHandler } from "./lib/http.js";
+import { attachTerminal } from "./terminal.js";
 
 const app = express();
 
@@ -33,9 +34,12 @@ app.use("/api", apiRouter);
 
 app.use(errorHandler);
 
-app.listen(config.port, () => {
+const server = app.listen(config.port, () => {
   // eslint-disable-next-line no-console
   console.log(
     `[mimir] proxy listening on http://localhost:${config.port}  ->  floci ${config.flociEndpoint}`,
   );
 });
+
+// WebSocket bridge for the EC2 instance terminal (docker exec over a PTY).
+attachTerminal(server);

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Server, Play, Square, Trash2 } from "lucide-react";
+import { Server, Play, Square, Trash2, SquareTerminal } from "lucide-react";
 import { ec2Api, type Instance } from "./ec2Api";
+import { TerminalModal } from "./TerminalModal";
 import { formatDate } from "@/lib/format";
 import {
   PageHeader,
@@ -28,6 +29,7 @@ function InstancesTab() {
   const { notify } = useToast();
   const [launchOpen, setLaunchOpen] = useState(false);
   const [form, setForm] = useState({ name: "", imageId: "ami-12345678", instanceType: "t3.micro" });
+  const [terminalFor, setTerminalFor] = useState<Instance | null>(null);
 
   const q = useQuery({ queryKey: ["ec2", "instances"], queryFn: ec2Api.instances });
 
@@ -65,6 +67,11 @@ function InstancesTab() {
       className: "text-right",
       render: (i) => (
         <div className="flex justify-end gap-1">
+          {i.state === "running" && (
+            <button className="rounded p-1.5 text-ink-500 hover:bg-floci/10 hover:text-floci" onClick={() => setTerminalFor(i)} title="Connect (terminal)">
+              <SquareTerminal className="h-4 w-4" />
+            </button>
+          )}
           <button className="rounded p-1.5 text-ink-500 hover:bg-ok/10 hover:text-ok" onClick={() => act.mutate({ id: i.id, action: "start" })} title="Start">
             <Play className="h-4 w-4" />
           </button>
@@ -115,6 +122,7 @@ function InstancesTab() {
           <div><label className="label">Instance type</label><input className="input" value={form.instanceType} onChange={(e) => setForm({ ...form, instanceType: e.target.value })} /></div>
         </div>
       </Modal>
+      <TerminalModal instance={terminalFor} onClose={() => setTerminalFor(null)} />
     </>
   );
 }
