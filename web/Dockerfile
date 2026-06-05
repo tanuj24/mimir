@@ -4,7 +4,7 @@
 # ---- build ----
 FROM node:20-alpine AS build
 WORKDIR /app
-COPY web/package.json ./
+COPY package-lock.json web/package.json ./
 RUN npm install
 COPY web/ ./
 RUN npm run build

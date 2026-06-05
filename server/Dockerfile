@@ -9,8 +9,9 @@ ENV npm_config_nodedir=/usr/local
 # node-pty is a native addon — needs a toolchain to compile against musl.
 # Switch repos to HTTP first to work around corporate proxy TLS interception.
 RUN sed -i 's/https/http/' /etc/apk/repositories \
- && apk add --no-cache python3 make g++ linux-headers
-COPY server/package.json server/tsconfig.json ./
+ && apk add --no-cache python3 build-base linux-headers \
+ && ln -sf /usr/bin/python3 /usr/bin/python
+COPY package-lock.json server/package.json server/tsconfig.json ./
 RUN npm install
 COPY server/src ./src
 RUN npm run build
@@ -26,11 +27,12 @@ ENV npm_config_nodedir=/usr/local
 # inside those job/kernel containers.
 COPY --from=docker-source /usr/local/bin/docker /usr/local/bin/docker
 WORKDIR /app
-COPY server/package.json ./
+COPY package-lock.json server/package.json ./
 # Compile native deps (node-pty) with a throwaway toolchain, then drop it so
 # the runtime image stays small.
 RUN sed -i 's/https/http/' /etc/apk/repositories \
- && apk add --no-cache --virtual .build python3 make g++ linux-headers \
+ && apk add --no-cache --virtual .build python3 build-base linux-headers \
+ && ln -sf /usr/bin/python3 /usr/bin/python \
  && npm install --omit=dev && npm cache clean --force \
  && apk del .build
 COPY --from=build /app/dist ./dist
