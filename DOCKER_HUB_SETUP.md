@@ -65,25 +65,55 @@ Leave these blank or link to your own documentation site. Users don't need these
 
 ## Step 3: Add Repository Topics (Tags for Discoverability)
 
-Scroll down to **Topics** section. Add these topics (click each and hit Enter):
+**Where to find Topics:**
+
+Option A (Most Common):
+1. Go to: https://hub.docker.com/r/tanujsoni027/mimir-aws
+2. Look for **"Edit repository"** button (top right, or pencil icon)
+3. In the modal, look for **"Topics"** field at the bottom
+4. Click it and add topics
+
+Option B (Alternative):
+1. Go to: https://hub.docker.com/r/tanujsoni027/mimir-aws/settings
+2. Scroll down to find **"Topics"** section
+3. If you don't see it, the field might be under **"Repository Links"** section
+
+Option C (If still not visible):
+- Topics might be under the repository's main page
+- On the repository page, look for a **"Topics"** section on the right side
+- Click **"Add topic"** or the edit icon next to it
+
+**Add these topics** (one per line or separated by commas):
+
+Copy and paste these as topics (one at a time, or comma-separated):
 
 ```
-aws
-aws-emulator
-serverless
-local-development
-lambda
-dynamodb
-glue
-testing
-docker
-open-source
-development-tools
-mocking
-offline-first
-localstack-alternative
-docker-compose
+aws, aws-emulator, serverless, local-development, lambda, dynamodb, 
+glue, testing, docker, open-source, development-tools, mocking, 
+offline-first, localstack-alternative, docker-compose
 ```
+
+Or individually:
+- aws
+- aws-emulator
+- serverless
+- local-development
+- lambda
+- dynamodb
+- glue
+- testing
+- docker
+- open-source
+- development-tools
+- mocking
+- offline-first
+- localstack-alternative
+- docker-compose
+
+**Troubleshooting Topics:**
+- If you don't see the Topics field anywhere, try accessing the repository page directly and refreshing
+- The **"Edit repository"** button is usually in the top-right corner of the repository page
+- If topics are not available in your region, they may appear under **"Repository details"** instead
 
 ---
 
