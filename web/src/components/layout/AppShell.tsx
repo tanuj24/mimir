@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom";
 import { TopBar } from "./TopBar";
 import { Sidebar } from "./Sidebar";
+import { SystemMonitor } from "./SystemMonitor";
 
 export function AppShell() {
   return (
@@ -23,6 +24,8 @@ export function AppShell() {
           </footer>
         </main>
       </div>
+      {/* Constant resource monitor, always visible across pages. */}
+      <SystemMonitor />
     </div>
   );
 }

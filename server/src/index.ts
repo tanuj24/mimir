@@ -4,6 +4,7 @@ import { config } from "./config.js";
 import { apiRouter } from "./routes/index.js";
 import { errorHandler } from "./lib/http.js";
 import { attachTerminal } from "./terminal.js";
+import { startEc2Reconcile } from "./ec2/cleanup.js";
 
 const app = express();
 
@@ -43,3 +44,6 @@ const server = app.listen(config.port, () => {
 
 // WebSocket bridge for the EC2 instance terminal (docker exec over a PTY).
 attachTerminal(server);
+
+// Reap orphaned Floci EC2 containers from terminated instances.
+startEc2Reconcile();

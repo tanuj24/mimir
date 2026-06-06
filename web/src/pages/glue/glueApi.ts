@@ -85,8 +85,10 @@ export const glueApi = {
     api.get(`/glue/databases/tables?database=${encodeURIComponent(database)}`),
 
   // jobs
-  jobs: (): Promise<{ jobs: GlueJob[]; engine: { PYTHON_IMAGE: string; SPARK_IMAGE: string } }> =>
-    api.get("/glue/jobs"),
+  jobs: (): Promise<{
+    jobs: GlueJob[];
+    engine: { images: Record<string, string>; defaultImage: string; runtimeEndpoint: string };
+  }> => api.get("/glue/jobs"),
   job: (name: string): Promise<{ job: GlueJob; runs: JobRun[] }> =>
     api.get(`/glue/jobs/${encodeURIComponent(name)}`),
   saveJob: (body: {
@@ -115,31 +117,56 @@ export const glueApi = {
 };
 
 export const JOB_TEMPLATES: Record<JobType, string> = {
-  pythonshell: `# AWS Glue — Python shell job (runs locally in Docker via FlociUI)
+  pythonshell: `# AWS Glue — Python shell job. Runs on the real Glue runtime image, so the
+# libraries a Glue python-shell job ships with (boto3, pandas, numpy, awsglue
+# utils) are available and this exact code runs unmodified.
 import sys
 from datetime import datetime
+from awsglue.utils import getResolvedOptions
 
-print("Job started at", datetime.utcnow().isoformat())
+args = getResolvedOptions(sys.argv, ["JOB_NAME"])
+print("Job", args["JOB_NAME"], "started at", datetime.utcnow().isoformat())
 
-# Your ETL logic here. The Python standard library is available.
-records = [{"id": i, "value": i * i} for i in range(10)]
-total = sum(r["value"] for r in records)
+# Example: talk to local AWS (Floci) via boto3 — endpoint is pre-wired.
+import boto3
+s3 = boto3.client("s3")
+print("Buckets:", [b["Name"] for b in s3.list_buckets().get("Buckets", [])])
 
-print(f"Processed {len(records)} records, total value = {total}")
 print("Done.")
 `,
-  glueetl: `# AWS Glue — Spark (PySpark) job (runs locally via spark-submit in Docker)
-from pyspark.sql import SparkSession
+  glueetl: `# AWS Glue — Spark (PySpark/Glue) job. Runs the real awsglue runtime via
+# spark-submit, so GlueContext, DynamicFrame and the Glue transforms work and
+# this exact AWS Glue script executes locally against Floci's S3/Catalog.
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
 
-spark = SparkSession.builder.appName("flociui-glue-job").getOrCreate()
+args = getResolvedOptions(sys.argv, ["JOB_NAME"])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args["JOB_NAME"], args)
 
-df = spark.createDataFrame(
-    [(1, "alpha"), (2, "beta"), (3, "gamma")],
-    ["id", "name"],
-)
-df.show()
-print("Row count:", df.count())
+# Build a DynamicFrame from in-memory data and inspect it.
+df = spark.createDataFrame([(1, "alpha"), (2, "beta"), (3, "gamma")], ["id", "name"])
+from awsglue.dynamicframe import DynamicFrame
+dyf = DynamicFrame.fromDF(df, glueContext, "demo")
+dyf.printSchema()
+dyf.toDF().show()
+print("Row count:", dyf.count())
 
-spark.stop()
+# Read straight from the local Glue Data Catalog (database + table must exist
+# under the Catalog tab). Reads the table's S3 data via Floci too:
+# src = glueContext.create_dynamic_frame.from_catalog(database="my_db", table_name="my_table")
+# src.toDF().show()
+
+# Read/write Floci S3 just like AWS, e.g.:
+# dyf.toDF().write.mode("overwrite").parquet("s3a://my-bucket/output/")
+
+job.commit()
 `,
 };

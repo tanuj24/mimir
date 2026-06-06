@@ -7,26 +7,154 @@ import { randomUUID } from "node:crypto";
 import { basename } from "node:path";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { makeClient } from "../aws/clientFactory.js";
+import { config } from "../config.js";
 
 /**
  * Local AWS-Glue-style execution engine.
  *
  * Floci does NOT implement Glue jobs or interactive sessions, so FlociUI runs
- * them locally in Docker containers:
- *   - Python shell jobs  -> python image, `python script.py`
- *   - Spark (glueetl)    -> spark image, `spark-submit script.py`
+ * them locally in Docker using the OFFICIAL AWS Glue runtime images. These
+ * bundle the exact libraries a real Glue job ships with — the `awsglue` package
+ * (GlueContext, DynamicFrame, the Glue transforms, Job, getResolvedOptions), a
+ * version-matched Apache Spark, py4j, plus boto3/pandas/numpy/pyarrow — so an
+ * unmodified Glue job script runs here the same way it does on AWS:
+ *   - Spark (glueetl)    -> Glue image, `$SPARK_HOME/bin/spark-submit script.py`
+ *   - Python shell jobs  -> Glue image, `python script.py` (awsglue on PYTHONPATH)
  *   - Notebooks/sessions -> a long-lived kernel container with stateful exec
+ *
+ * Containers are wired to Floci's emulated AWS (S3 via the s3a connector, boto3
+ * via AWS_ENDPOINT_URL) so jobs can read/write real local buckets.
  *
  * Catalog (databases/tables) is handled separately against Floci's real API.
  */
 
-const PYTHON_IMAGE = process.env.GLUE_PYTHON_IMAGE ?? "python:3.11-slim";
-const SPARK_IMAGE = process.env.GLUE_SPARK_IMAGE ?? "spark:python3";
+// glueVersion -> the official AWS Glue libs image that matches that runtime.
+// Every image ships `awsglue` on PYTHONPATH (PyGlue.zip) and a version-matched
+// Spark, so real Glue code executes unchanged. Each is overridable via env.
+const GLUE_IMAGES: Record<string, string> = {
+  "5.0": process.env.GLUE_IMAGE_5_0 ?? "public.ecr.aws/glue/aws-glue-libs:5",
+  "4.0": process.env.GLUE_IMAGE_4_0 ?? "amazon/aws-glue-libs:glue_libs_4.0.0_image_01",
+  "3.0": process.env.GLUE_IMAGE_3_0 ?? "amazon/aws-glue-libs:glue_libs_3.0.0_image_01",
+  "2.0": process.env.GLUE_IMAGE_2_0 ?? "amazon/aws-glue-libs:glue_libs_2.0.0_image_01",
+  // AWS never published a 1.0 dev image; 2.0 is the closest runtime.
+  "1.0": process.env.GLUE_IMAGE_2_0 ?? "amazon/aws-glue-libs:glue_libs_2.0.0_image_01",
+};
+const DEFAULT_GLUE_VERSION = "4.0";
 
-/** Make a temp dir + its files readable by non-root container users (e.g. spark). */
+/** Resolve a Glue version (e.g. "4.0") to its runtime Docker image. */
+function glueImage(glueVersion: string): string {
+  return GLUE_IMAGES[glueVersion] ?? GLUE_IMAGES[DEFAULT_GLUE_VERSION];
+}
+
+/**
+ * Endpoint the job/kernel containers use to reach Floci. They run on the HOST
+ * docker daemon (not the compose network), so they reach Floci's published port
+ * via the host gateway, not the internal `floci` hostname. Overridable.
+ */
+const RUNTIME_ENDPOINT = process.env.GLUE_AWS_ENDPOINT ?? "http://host.docker.internal:4566";
+
+/** `-e KEY=VALUE` args that point boto3/AWS SDKs inside the container at Floci. */
+function awsEnvArgs(): string[] {
+  const env: Record<string, string> = {
+    AWS_REGION: config.region,
+    AWS_DEFAULT_REGION: config.region,
+    AWS_ACCESS_KEY_ID: config.accessKeyId,
+    AWS_SECRET_ACCESS_KEY: config.secretAccessKey,
+    AWS_ENDPOINT_URL: RUNTIME_ENDPOINT, // boto3 (botocore >= 1.28) honors this
+    AWS_ENDPOINT_URL_S3: RUNTIME_ENDPOINT,
+    AWS_ENDPOINT_URL_GLUE: RUNTIME_ENDPOINT,
+    DISABLE_SSL: "true", // the Glue images skip SSL for local endpoints
+  };
+  return Object.entries(env).flatMap(([k, v]) => ["-e", `${k}=${v}`]);
+}
+
+/**
+ * Spark confs that point the runtime at Floci so unmodified Glue code "just
+ * works" against the local stack:
+ *   - fs.s3a.*          -> DataFrame/DynamicFrame S3 reads & writes
+ *   - fs.s3.impl        -> route real catalog s3:// locations through S3A
+ *   - hadoop aws.glue.* -> the Hive catalog client (AWSGlueDataCatalogHive-
+ *                          ClientFactory) used by spark.sql("… db.table")
+ * The Glue ETL catalog client (DynamicFrame.from_catalog) is NOT configured
+ * here — it reads its endpoint from a classpath resource; see glueCatalogConf.
+ * All clients fall back to the AWS default credential chain, satisfied by the
+ * AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY env we inject.
+ */
+function s3aConf(): string[] {
+  return [
+    // S3 (s3a connector)
+    ["spark.hadoop.fs.s3a.endpoint", RUNTIME_ENDPOINT],
+    ["spark.hadoop.fs.s3a.path.style.access", "true"],
+    ["spark.hadoop.fs.s3a.connection.ssl.enabled", "false"],
+    ["spark.hadoop.fs.s3a.access.key", config.accessKeyId],
+    ["spark.hadoop.fs.s3a.secret.key", config.secretAccessKey],
+    [
+      "spark.hadoop.fs.s3a.aws.credentials.provider",
+      "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
+    ],
+    // Real catalog tables store s3:// locations — route that scheme through S3A
+    // so from_catalog can read them against Floci's S3.
+    ["spark.hadoop.fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"],
+    // Glue Data Catalog — Hive metastore client (spark.sql against db.table)
+    ["spark.hadoop.aws.glue.endpoint", RUNTIME_ENDPOINT],
+    ["spark.hadoop.aws.region", config.region],
+  ].flatMap(([k, v]) => ["--conf", `${k}=${v}`]);
+}
+
+/**
+ * The Glue ETL library's catalog client (used by DynamicFrame.from_catalog /
+ * getCatalogSource) gets its endpoint from EndpointConfig, which loads two
+ * classpath resources — `glue-default.conf` and `glue-override.conf`. Neither
+ * exists in the local image, so it NPEs and falls back to the REAL AWS Glue
+ * endpoint. We write both files (pointing at Floci) into the run/session dir
+ * and put that dir on the driver classpath, so from_catalog hits Floci.
+ */
+function glueCatalogConfContent(): string {
+  const ep = RUNTIME_ENDPOINT;
+  return [
+    `region = "${config.region}"`,
+    `catalog { region = "${config.region}" }`,
+    `credentials_provider = "com.amazonaws.auth.DefaultAWSCredentialsProviderChain"`,
+    `glue { endpoint = "${ep}" }`,
+    `datacatalog { endpoint = "${ep}" }`,
+    `jes { endpoint = "${ep}" }`,
+    `lakeformation { endpoint = "${ep}" }`,
+    "",
+  ].join("\n");
+}
+
+function writeGlueCatalogConf(dir: string): void {
+  const content = glueCatalogConfContent();
+  for (const name of ["glue-default.conf", "glue-override.conf"]) {
+    const p = join(dir, name);
+    writeFileSync(p, content);
+    try {
+      chmodSync(p, 0o644);
+    } catch {
+      /* best effort */
+    }
+  }
+}
+
+/**
+ * Shell snippet that reads the image's preset driver classpath from
+ * spark-defaults.conf into $DEFCP, so we can prepend our conf dir without
+ * hard-coding per-image jar paths (glue_user vs hadoop, /home vs /usr/lib).
+ */
+const READ_DEFCP =
+  `DEFCP=$(awk '$1=="spark.driver.extraClassPath"{ $1=""; sub(/^ +/,""); print }' "$SPARK_HOME/conf/spark-defaults.conf"); `;
+
+/** Let the host gateway be reachable as host.docker.internal on Linux too. */
+const ADD_HOST = ["--add-host", "host.docker.internal:host-gateway"];
+
+/**
+ * Relax temp dir perms so the image's non-root user (glue_user / hadoop) can
+ * write Spark scratch (spark-warehouse, metastore_db, derby.log) into the CWD,
+ * while keeping the given file world-readable.
+ */
 function makeWorldReadable(dir: string, file: string) {
   try {
-    chmodSync(dir, 0o755);
+    chmodSync(dir, 0o777);
     chmodSync(file, 0o644);
   } catch {
     /* best effort */
@@ -34,6 +162,8 @@ function makeWorldReadable(dir: string, file: string) {
 }
 const JOB_TIMEOUT_MS = Number(process.env.GLUE_JOB_TIMEOUT_MS ?? 300_000);
 const NAME_PREFIX = "mimir-glue-";
+/** In-container path the per-run work dir is bind-mounted at (world-writable /tmp). */
+const CONTAINER_WORK = "/tmp/mimir-work";
 
 /**
  * Base dir for per-run/session temp dirs. When Mimir runs inside a container
@@ -131,11 +261,20 @@ export interface Statement {
 
 interface LiveSession extends SessionMeta {
   child?: ReturnType<typeof spawn>;
+  dir: string; // persistent work dir (kernel.py + catalog conf) reused across respawns
   buffer: string;
   pending: Map<number, (r: { ok: boolean; output: string }) => void>;
   statements: Statement[];
   seq: number;
+  lastUsed: number; // epoch ms of last statement — drives idle shutdown
 }
+
+/**
+ * Idle notebooks tie up a container (and a JVM, for Spark). After this much
+ * inactivity the kernel container is torn down; the next statement transparently
+ * respawns it. Default 120 min, overridable.
+ */
+const SESSION_IDLE_MS = Number(process.env.GLUE_SESSION_IDLE_MS ?? 120 * 60_000);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const STATE_FILE = join(__dirname, "..", "..", ".glue-state.json");
@@ -238,8 +377,9 @@ function splitList(s: string): string[] {
 
 /**
  * Resolve s3:// and http(s):// artifacts into the run's work dir, returning the
- * in-container (/work/...) paths. Local bare filenames are passed through as-is.
- * s3:// is fetched from Floci's S3 — so "extra py files / jars" work like AWS.
+ * in-container (CONTAINER_WORK/...) paths. Local bare filenames are passed
+ * through as-is. s3:// is fetched from Floci's S3 — so "extra py files / jars"
+ * work like AWS.
  */
 async function resolveArtifacts(uris: string[], dir: string, log: (s: string) => void): Promise<string[]> {
   const out: string[] = [];
@@ -256,16 +396,16 @@ async function resolveArtifacts(uris: string[], dir: string, log: (s: string) =>
         const dest = join(dir, name);
         writeFileSync(dest, Buffer.from(bytes));
         makeWorldReadable(dir, dest);
-        out.push(`/work/${name}`);
-        log(`[flociui] fetched ${uri} -> /work/${name} (${bytes.length} bytes)\n`);
+        out.push(`${CONTAINER_WORK}/${name}`);
+        log(`[flociui] fetched ${uri} -> ${CONTAINER_WORK}/${name} (${bytes.length} bytes)\n`);
       } else if (uri.startsWith("http://") || uri.startsWith("https://")) {
         const name = basename(new URL(uri).pathname) || `artifact-${out.length}`;
         const buf = Buffer.from(await (await fetch(uri)).arrayBuffer());
         const dest = join(dir, name);
         writeFileSync(dest, buf);
         makeWorldReadable(dir, dest);
-        out.push(`/work/${name}`);
-        log(`[flociui] downloaded ${uri} -> /work/${name} (${buf.length} bytes)\n`);
+        out.push(`${CONTAINER_WORK}/${name}`);
+        log(`[flociui] downloaded ${uri} -> ${CONTAINER_WORK}/${name} (${buf.length} bytes)\n`);
       } else {
         out.push(uri); // pass through (already a container path / module name)
       }
@@ -322,23 +462,33 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
       jobArgs.push(p.key.startsWith("--") ? p.key : `--${p.key}`, p.value ?? "");
     }
 
-    const image = isSpark ? SPARK_IMAGE : PYTHON_IMAGE;
+    const image = glueImage(cfg.glueVersion);
     const cores = Math.max(1, cfg.numberOfWorkers || 1);
+    const script = `${CONTAINER_WORK}/script.py`;
     let inner: string;
 
     if (isSpark) {
-      const submit = ["/opt/spark/bin/spark-submit", "--master", `local[${cores}]`];
+      // Endpoint config for the Glue catalog client (from_catalog) lives in the
+      // work dir, which we put on the driver classpath below.
+      writeGlueCatalogConf(dir);
+      // $SPARK_HOME differs per image (/home/glue_user/spark, /usr/lib/spark…),
+      // so reference it from the shell rather than hard-coding a path.
+      const submit = ["--master", `local[${cores}]`, ...s3aConf()];
       if (pyFiles.length) submit.push("--py-files", pyFiles.join(","));
       if (jars.length) submit.push("--jars", jars.join(","));
       if (files.length) submit.push("--files", files.join(","));
-      submit.push("/work/script.py", ...jobArgs);
+      submit.push(script, ...jobArgs);
+      // Prepend the work dir (holding glue-*.conf) to the preset classpath.
+      const cp = `--conf spark.driver.extraClassPath="${CONTAINER_WORK}:$DEFCP" --conf spark.executor.extraClassPath="${CONTAINER_WORK}:$DEFCP"`;
       const pip = pipMods.length ? `pip install --user --quiet ${pipMods.join(" ")} && ` : "";
-      inner = `${pip}${shellJoin(submit)}`;
+      inner = `${pip}${READ_DEFCP}"$SPARK_HOME"/bin/spark-submit ${cp} ${shellJoin(submit)}`;
     } else {
-      // Python shell: extra py files all land in /work, so add it to PYTHONPATH.
-      const ppath = pyFiles.length ? `PYTHONPATH="/work:$PYTHONPATH" ` : "";
-      const pip = pipMods.length ? `pip install --quiet ${pipMods.join(" ")} && ` : "";
-      inner = `${pip}${ppath}python /work/script.py ${shellJoin(jobArgs)}`;
+      // Python shell: awsglue + boto3/pandas/numpy already ship on the image's
+      // PYTHONPATH; prepend the work dir so extra-py-files resolve too.
+      const ppath = pyFiles.length ? `PYTHONPATH="${CONTAINER_WORK}:$PYTHONPATH" ` : "";
+      // The Glue image ships python2 as `python`; awsglue/boto3 live in python3.
+      const pip = pipMods.length ? `pip3 install --user --quiet ${pipMods.join(" ")} && ` : "";
+      inner = `${pip}${ppath}python3 ${script} ${shellJoin(jobArgs)}`;
     }
 
     const args = [
@@ -346,12 +496,17 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
       "--rm",
       "--name",
       `${NAME_PREFIX}run-${run.id}`,
+      ...ADD_HOST,
+      ...awsEnvArgs(),
       "-v",
-      `${dir}:/work`,
+      `${dir}:${CONTAINER_WORK}`,
       "-w",
-      isSpark ? "/tmp" : "/work",
-      image,
+      CONTAINER_WORK,
+      // The Glue images set ENTRYPOINT ["bash","-l"]; override it so our command
+      // runs directly instead of being passed as args to the login shell.
+      "--entrypoint",
       "bash",
+      image,
       "-lc",
       inner,
     ];
@@ -442,52 +597,48 @@ export function listStatements(id: string): Statement[] {
   return sessions.get(id)?.statements ?? [];
 }
 
-export function createSession(kind: "python" | "spark"): SessionMeta {
-  const id = `${randomUUID().slice(0, 8)}`;
-  const dir = mkdtempSync(join(WORK_DIR, "mimir-glue-sess-"));
-  const kernelPath = join(dir, "kernel.py");
-  writeFileSync(kernelPath, KERNEL);
-  makeWorldReadable(dir, kernelPath);
-
+/** (Re)launch the kernel container for a session and wire up its IO handlers. */
+function spawnKernel(session: LiveSession): void {
+  const { id, dir, kind } = session;
   const isSpark = kind === "spark";
-  const image = isSpark ? SPARK_IMAGE : PYTHON_IMAGE;
-  // Spark: put pyspark + py4j on PYTHONPATH and pin a local master so a plain
-  // python3 kernel can create a SparkSession; run from /tmp (writable).
-  const launch = isSpark
-    ? [
-        "bash",
-        "-lc",
-        'export PYTHONPATH="$SPARK_HOME/python:$(ls $SPARK_HOME/python/lib/py4j-*-src.zip)"; ' +
-          "export PYSPARK_SUBMIT_ARGS='--master local[*] pyspark-shell'; " +
-          "exec python3 -u /k/kernel.py",
-      ]
-    : ["python", "-u", "/k/kernel.py"];
+  // Both kernels use the Glue runtime image so `awsglue` (utils, and for Spark
+  // GlueContext/DynamicFrame/transforms) plus boto3/pandas are importable. The
+  // image already has pyspark + py4j + awsglue on PYTHONPATH.
+  const image = process.env.GLUE_SESSION_IMAGE ?? glueImage(DEFAULT_GLUE_VERSION);
+  // Spark: pin a local master, point s3a + catalog at Floci, and put the kernel
+  // dir (with glue-*.conf) on the driver classpath so GlueContext(sc) and
+  // from_catalog hit Floci. /k holds kernel.py and the catalog conf.
+  let innerCmd: string;
+  if (isSpark) {
+    const sparkArgs = ["--master", "local[*]", "--conf", "spark.driver.extraClassPath=/k:$DEFCP", ...s3aConf(), "pyspark-shell"].join(" ");
+    // Double-quote so $DEFCP expands; the conf values have no quotes/spaces.
+    innerCmd = `${READ_DEFCP}export PYSPARK_SUBMIT_ARGS="${sparkArgs}"; exec python3 -u /k/kernel.py`;
+  } else {
+    innerCmd = "exec python3 -u /k/kernel.py";
+  }
   const child = spawn("docker", [
     "run",
     "-i",
     "--rm",
     "--name",
     `${NAME_PREFIX}${id}`,
+    ...ADD_HOST,
+    ...awsEnvArgs(),
     "-v",
     `${dir}:/k`,
     "-w",
-    isSpark ? "/tmp" : "/k",
+    "/k",
+    // Override the Glue image's ENTRYPOINT ["bash","-l"] so our kernel launches.
+    "--entrypoint",
+    "bash",
     image,
-    ...launch,
+    "-lc",
+    innerCmd,
   ]);
 
-  const session: LiveSession = {
-    id,
-    kind,
-    status: "PROVISIONING",
-    createdOn: new Date().toISOString(),
-    child,
-    buffer: "",
-    pending: new Map(),
-    statements: [],
-    seq: 0,
-  };
-  sessions.set(id, session);
+  session.child = child;
+  session.status = "PROVISIONING";
+  session.buffer = "";
 
   child.stdout.on("data", (chunk: Buffer) => {
     session.buffer += chunk.toString();
@@ -512,12 +663,56 @@ export function createSession(kind: "python" | "spark"): SessionMeta {
   });
   child.stderr.on("data", () => {}); // image-pull / spark noise ignored
   child.on("close", () => {
-    if (session.status !== "STOPPED") session.status = "FAILED";
-    rmSync(dir, { recursive: true, force: true });
+    // Only an unexpected exit is a failure; idle/delete teardown sets STOPPED first.
+    if (session.child === child && session.status !== "STOPPED") session.status = "FAILED";
   });
   child.on("error", () => {
-    session.status = "FAILED";
+    if (session.child === child) session.status = "FAILED";
   });
+}
+
+/** Tear down a session's kernel container but keep its metadata + work dir so
+ *  it can be transparently respawned (idle shutdown). */
+function stopKernel(session: LiveSession): void {
+  session.status = "STOPPED";
+  const child = session.child;
+  session.child = undefined;
+  try {
+    child?.stdin?.end();
+    child?.kill("SIGKILL");
+  } catch {
+    /* already gone */
+  }
+  execFile("docker", ["rm", "-f", `${NAME_PREFIX}${session.id}`], () => {});
+  // Fail any in-flight statements so callers don't hang.
+  for (const cb of session.pending.values()) cb({ ok: false, output: "[session stopped]" });
+  session.pending.clear();
+}
+
+export function createSession(kind: "python" | "spark"): SessionMeta {
+  const id = `${randomUUID().slice(0, 8)}`;
+  const dir = mkdtempSync(join(WORK_DIR, "mimir-glue-sess-"));
+  const kernelPath = join(dir, "kernel.py");
+  writeFileSync(kernelPath, KERNEL);
+  makeWorldReadable(dir, kernelPath);
+  // Spark catalog conf is written once and reused across respawns.
+  if (kind === "spark") writeGlueCatalogConf(dir);
+
+  const session: LiveSession = {
+    id,
+    kind,
+    status: "PROVISIONING",
+    createdOn: new Date().toISOString(),
+    child: undefined,
+    dir,
+    buffer: "",
+    pending: new Map(),
+    statements: [],
+    seq: 0,
+    lastUsed: Date.now(),
+  };
+  sessions.set(id, session);
+  spawnKernel(session);
 
   return { id, kind, status: session.status, createdOn: session.createdOn };
 }
@@ -525,14 +720,20 @@ export function createSession(kind: "python" | "spark"): SessionMeta {
 export async function runStatement(id: string, code: string): Promise<Statement> {
   const session = sessions.get(id);
   if (!session) throw Object.assign(new Error("Session not found"), { name: "EntityNotFoundException" });
-  if (!session.child || session.status === "FAILED" || session.status === "STOPPED")
-    throw Object.assign(new Error("Session is not running"), { name: "IllegalSessionStateException" });
+  session.lastUsed = Date.now();
+
+  // Wake an idle (STOPPED) or crashed (FAILED) kernel transparently.
+  if (!session.child || session.status === "STOPPED" || session.status === "FAILED") {
+    spawnKernel(session);
+  }
 
   // Wait (briefly) for the kernel to finish provisioning / image pull.
   const deadline = Date.now() + JOB_TIMEOUT_MS;
   while (session.status === "PROVISIONING" && Date.now() < deadline) {
     await new Promise((r) => setTimeout(r, 200));
   }
+  if (session.status !== "READY" || !session.child)
+    throw Object.assign(new Error("Session is not running"), { name: "IllegalSessionStateException" });
 
   const sid = ++session.seq;
   const result = await new Promise<{ ok: boolean; output: string }>((resolve, reject) => {
@@ -561,11 +762,22 @@ export async function runStatement(id: string, code: string): Promise<Statement>
 export function deleteSession(id: string): void {
   const session = sessions.get(id);
   if (!session) return;
-  session.status = "STOPPED";
-  session.child?.stdin?.end();
-  session.child?.kill("SIGKILL");
-  execFile("docker", ["rm", "-f", `${NAME_PREFIX}${id}`], () => {});
+  stopKernel(session);
+  rmSync(session.dir, { recursive: true, force: true });
   sessions.delete(id);
 }
 
-export const engineInfo = { PYTHON_IMAGE, SPARK_IMAGE };
+// Idle sweep: tear down kernels untouched for SESSION_IDLE_MS. The next
+// statement respawns them (see runStatement). unref so it never blocks exit.
+setInterval(() => {
+  const now = Date.now();
+  for (const s of sessions.values()) {
+    if (s.child && now - s.lastUsed > SESSION_IDLE_MS) stopKernel(s);
+  }
+}, 60_000).unref();
+
+export const engineInfo = {
+  images: GLUE_IMAGES,
+  defaultImage: glueImage(DEFAULT_GLUE_VERSION),
+  runtimeEndpoint: RUNTIME_ENDPOINT,
+};

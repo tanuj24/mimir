@@ -43,7 +43,7 @@ export function JobConfigForm({
           </Field>
           <Field label="Glue version">
             <select className="input" value={config.glueVersion} onChange={(e) => set("glueVersion", e.target.value)}>
-              {["4.0", "3.0", "2.0", "1.0"].map((v) => (
+              {["5.0", "4.0", "3.0", "2.0", "1.0"].map((v) => (
                 <option key={v}>{v}</option>
               ))}
             </select>

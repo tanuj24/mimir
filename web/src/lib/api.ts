@@ -48,10 +48,17 @@ export const api = {
       body: body !== undefined ? JSON.stringify(body) : undefined,
     }).then(handle),
 
+  patch: (path: string, body?: unknown) =>
+    fetch(`${BASE}${path}`, {
+      method: "PATCH",
+      headers: headers({ "Content-Type": "application/json" }),
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    }).then(handle),
+
   del: (path: string) =>
     fetch(`${BASE}${path}`, { method: "DELETE", headers: headers() }).then(handle),
 
   // multipart upload (FormData) — no JSON content-type header
-  upload: (path: string, form: FormData) =>
-    fetch(`${BASE}${path}`, { method: "POST", headers: headers(), body: form }).then(handle),
+  upload: (path: string, form: FormData, method: "POST" | "PUT" = "POST") =>
+    fetch(`${BASE}${path}`, { method, headers: headers(), body: form }).then(handle),
 };

@@ -35,6 +35,9 @@ services:
       AWS_SECRET_ACCESS_KEY: mimir
       PORT: "4000"
       GLUE_WORK_DIR: /tmp/mimir-glue
+      # Glue job/notebook containers run on the HOST daemon (not this compose
+      # network), so they reach Floci via the host gateway, not the `floci` name.
+      GLUE_AWS_ENDPOINT: http://host.docker.internal:4566
     ports:
       - "4000:4000"
     volumes:

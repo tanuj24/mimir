@@ -15,6 +15,7 @@ import { ecrRouter } from "./ecr.js";
 import { eksRouter } from "./eks.js";
 import { glueRouter } from "./glue.js";
 import { kafkaRouter } from "./kafka.js";
+import { systemRouter } from "./system.js";
 
 /**
  * Mounts every service router under /api/<service>.
@@ -38,3 +39,4 @@ apiRouter.use("/ecr", ecrRouter);
 apiRouter.use("/eks", eksRouter);
 apiRouter.use("/glue", glueRouter);
 apiRouter.use("/kafka", kafkaRouter);
+apiRouter.use("/system", systemRouter);

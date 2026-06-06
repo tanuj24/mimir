@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Zap, RefreshCw, Trash2, Play, Plus } from "lucide-react";
-import { lambdaApi, type LambdaFn, type InvokeResult } from "./lambdaApi";
+import { lambdaApi, RUNTIMES, ARCHITECTURES, runtimeDefaults, type LambdaFn, type InvokeResult } from "./lambdaApi";
+import { LambdaDetail } from "./LambdaDetail";
 import { formatBytes, formatDate } from "@/lib/format";
 import {
   PageHeader,
@@ -16,27 +17,6 @@ import {
   type Column,
 } from "@/components/ui";
 
-const RUNTIMES = [
-  "nodejs20.x",
-  "nodejs18.x",
-  "python3.12",
-  "python3.11",
-  "python3.9",
-];
-
-function runtimeDefaults(runtime: string): { handler: string; code: string } {
-  if (runtime.startsWith("python")) {
-    return {
-      handler: "lambda_function.lambda_handler",
-      code: `def lambda_handler(event, context):\n    return {"statusCode": 200, "body": "Hello from Lambda!"}\n`,
-    };
-  }
-  return {
-    handler: "index.handler",
-    code: `export const handler = async (event) => {\n  return { statusCode: 200, body: "Hello from Lambda!" };\n};\n`,
-  };
-}
-
 function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
   const { notify } = useToast();
@@ -44,8 +24,11 @@ function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) 
   const [runtime, setRuntime] = useState("nodejs20.x");
   const [handler, setHandler] = useState(runtimeDefaults("nodejs20.x").handler);
   const [code, setCode] = useState(runtimeDefaults("nodejs20.x").code);
+  const [architecture, setArchitecture] = useState("x86_64");
   const [memorySize, setMemorySize] = useState(128);
   const [timeout, setTimeout] = useState(3);
+  const [ephemeral, setEphemeral] = useState(512);
+  const [description, setDescription] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [touchedCode, setTouchedCode] = useState(false);
 
@@ -54,8 +37,11 @@ function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) 
     setRuntime("nodejs20.x");
     setHandler(runtimeDefaults("nodejs20.x").handler);
     setCode(runtimeDefaults("nodejs20.x").code);
+    setArchitecture("x86_64");
     setMemorySize(128);
     setTimeout(3);
+    setEphemeral(512);
+    setDescription("");
     setFile(null);
     setTouchedCode(false);
   }
@@ -74,8 +60,11 @@ function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) 
         name: name.trim(),
         runtime,
         handler: handler.trim(),
+        architecture,
         memorySize,
         timeout,
+        ephemeralStorage: ephemeral,
+        description: description.trim() || undefined,
         code: file ? undefined : code,
         file,
       }),
@@ -138,12 +127,27 @@ function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) 
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
+            <label className="label">Architecture</label>
+            <select className="input" value={architecture} onChange={(e) => setArchitecture(e.target.value)}>
+              {ARCHITECTURES.map((a) => (
+                <option key={a}>{a}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="label">Description</label>
+            <input className="input" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="optional" />
+          </div>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          <div>
             <label className="label">Memory (MB)</label>
             <input
               type="number"
               className="input"
               value={memorySize}
               min={128}
+              max={10240}
               step={64}
               onChange={(e) => setMemorySize(Number(e.target.value))}
             />
@@ -155,7 +159,20 @@ function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) 
               className="input"
               value={timeout}
               min={1}
+              max={900}
               onChange={(e) => setTimeout(Number(e.target.value))}
+            />
+          </div>
+          <div>
+            <label className="label">Ephemeral /tmp (MB)</label>
+            <input
+              type="number"
+              className="input"
+              value={ephemeral}
+              min={512}
+              max={10240}
+              step={64}
+              onChange={(e) => setEphemeral(Number(e.target.value))}
             />
           </div>
         </div>
@@ -268,6 +285,7 @@ function InvokeModal({ fn, onClose }: { fn: LambdaFn | null; onClose: () => void
 export function LambdaPage() {
   const qc = useQueryClient();
   const { notify } = useToast();
+  const [selected, setSelected] = useState<string | null>(null);
   const [invokeFn, setInvokeFn] = useState<LambdaFn | null>(null);
   const [toDelete, setToDelete] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
@@ -287,7 +305,7 @@ export function LambdaPage() {
   });
 
   const columns: Column<LambdaFn>[] = [
-    { key: "name", header: "Function name", render: (f) => <span className="font-medium">{f.name}</span> },
+    { key: "name", header: "Function name", render: (f) => <button className="link font-medium" onClick={() => setSelected(f.name)}>{f.name}</button> },
     { key: "runtime", header: "Runtime", render: (f) => f.runtime ?? f.packageType ?? "—" },
     { key: "memory", header: "Memory", render: (f) => `${f.memorySize ?? 0} MB` },
     { key: "timeout", header: "Timeout", render: (f) => `${f.timeout ?? 0}s` },
@@ -317,6 +335,19 @@ export function LambdaPage() {
       ),
     },
   ];
+
+  if (selected) {
+    return (
+      <div>
+        <PageHeader
+          title="AWS Lambda"
+          subtitle={selected}
+          crumbs={[{ label: "Console Home", to: "/" }, { label: "Lambda" }]}
+        />
+        <LambdaDetail name={selected} onBack={() => setSelected(null)} />
+      </div>
+    );
+  }
 
   return (
     <div>

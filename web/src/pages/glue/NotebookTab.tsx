@@ -23,7 +23,8 @@ function Notebook({ id, onBack }: { id: string; onBack: () => void }) {
   const detail = useQuery({
     queryKey: ["glue", "session", id],
     queryFn: () => glueApi.session(id),
-    refetchInterval: (q) => (q.state.data?.session.status === "PROVISIONING" ? 1500 : false),
+    // Poll fast while starting; otherwise slowly, so an idle auto-stop reflects.
+    refetchInterval: (q) => (q.state.data?.session.status === "PROVISIONING" ? 1500 : 20000),
   });
 
   const runCell = useMutation({
@@ -37,6 +38,10 @@ function Notebook({ id, onBack }: { id: string; onBack: () => void }) {
 
   const status = detail.data?.session.status;
   const ready = status === "READY";
+  // A STOPPED kernel was torn down after idle; FAILED crashed. Running a cell
+  // transparently respawns it, so allow submitting in those states too.
+  const idle = status === "STOPPED" || status === "FAILED";
+  const canRun = ready || idle;
 
   return (
     <div>
@@ -53,8 +58,8 @@ function Notebook({ id, onBack }: { id: string; onBack: () => void }) {
             <span className="inline-flex items-center gap-1 rounded-full bg-link/10 px-2 py-0.5 text-xs font-medium text-link"><FileCode2 className="h-3 w-3" /> Python</span>
           )}
           <span className="flex items-center gap-1 text-xs text-ink-500">
-            <Circle className={`h-2 w-2 ${ready ? "fill-ok text-ok" : "fill-warn text-warn"}`} />
-            {status === "PROVISIONING" ? "Starting kernel…" : status}
+            <Circle className={`h-2 w-2 ${ready ? "fill-ok text-ok" : idle ? "fill-ink-300 text-ink-300" : "fill-warn text-warn"}`} />
+            {status === "PROVISIONING" ? "Starting kernel…" : idle ? "Idle — run a cell to resume" : status}
           </span>
         </div>
       </div>
@@ -84,19 +89,25 @@ function Notebook({ id, onBack }: { id: string; onBack: () => void }) {
             </div>
             <textarea
               className="min-h-[120px] flex-1 resize-y bg-squid-900 p-3 font-mono text-xs leading-relaxed text-green-100 outline-none"
-              placeholder={ready ? "Type Python code and press ⌘/Ctrl+Enter to run…" : "Waiting for kernel…"}
+              placeholder={
+                ready
+                  ? "Type Python code and press ⌘/Ctrl+Enter to run…"
+                  : idle
+                    ? "Idle kernel — run a cell to resume (state is reset)…"
+                    : "Waiting for kernel…"
+              }
               value={code}
               onChange={(e) => setCode(e.target.value)}
               onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && code.trim() && ready) runCell.mutate();
+                if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && code.trim() && canRun) runCell.mutate();
               }}
               spellCheck={false}
             />
           </div>
           <div className="flex items-center justify-between border-t border-line px-3 py-2">
-            <span className="text-xs text-ink-500">⌘/Ctrl + Enter to run · state persists across cells</span>
-            <button className="btn-primary" disabled={!code.trim() || !ready || runCell.isPending} onClick={() => runCell.mutate()}>
-              <Play className="h-4 w-4" /> {runCell.isPending ? "Running…" : "Run cell"}
+            <span className="text-xs text-ink-500">⌘/Ctrl + Enter to run · state persists across cells · kernel auto-stops after 120 min idle</span>
+            <button className="btn-primary" disabled={!code.trim() || !canRun || runCell.isPending} onClick={() => runCell.mutate()}>
+              <Play className="h-4 w-4" /> {runCell.isPending ? (idle ? "Resuming…" : "Running…") : idle ? "Resume & run" : "Run cell"}
             </button>
           </div>
         </div>
@@ -205,8 +216,16 @@ export function NotebookTab() {
             </button>
           ))}
         </div>
+        <p className="mt-2 text-xs text-ink-500">
+          Kernels run on the official AWS Glue runtime image, so <code>awsglue</code>
+          {kind === "spark" ? " (GlueContext, DynamicFrame, transforms)" : " utils"}, boto3 and
+          pandas are importable and wired to local AWS.
+        </p>
         {kind === "spark" && (
-          <p className="mt-2 text-xs text-warn">Spark starts a JVM on first use — the kernel may take ~15–30s to become ready.</p>
+          <p className="mt-2 text-xs text-warn">
+            Spark starts a JVM on first use. The first session also pulls the multi-GB Glue image,
+            so the kernel can take a few minutes to become ready.
+          </p>
         )}
       </Modal>
 

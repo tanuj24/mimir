@@ -34,7 +34,7 @@ function JobDetail({ name, onBack }: { name: string; onBack: () => void }) {
   const [sub, setSub] = useState<"script" | "details" | "runs">("script");
   const [script, setScript] = useState("");
   const [config, setConfig] = useState<JobConfig | null>(null);
-  const [openRun, setOpenRun] = useState<JobRun | null>(null);
+  const [openRunId, setOpenRunId] = useState<string | null>(null);
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
 
   const detail = useQuery({ queryKey: ["glue", "job", name], queryFn: () => glueApi.job(name) });
@@ -45,16 +45,24 @@ function JobDetail({ name, onBack }: { name: string; onBack: () => void }) {
     }
   }, [detail.data?.job.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Poll runs while one is active.
+  // Poll runs while one is active OR the open logs modal shows a RUNNING run,
+  // so logs stream live without a manual refresh.
   const runs = useQuery({
     queryKey: ["glue", "runs", name],
     queryFn: () => glueApi.runs(name),
-    refetchInterval: activeRunId ? 1500 : false,
+    refetchInterval: (q) => {
+      const rs = q.state.data?.runs ?? [];
+      const liveOpen = openRunId && rs.some((r) => r.id === openRunId && r.status === "RUNNING");
+      return activeRunId || liveOpen ? 1500 : false;
+    },
   });
   useEffect(() => {
     const active = runs.data?.runs.find((r) => r.id === activeRunId);
     if (active && active.status !== "RUNNING") setActiveRunId(null);
   }, [runs.data, activeRunId]);
+
+  // Derive the open run from the (polling) runs list so its logs update live.
+  const openRun = openRunId ? runs.data?.runs.find((r) => r.id === openRunId) ?? null : null;
 
   const save = useMutation({
     mutationFn: () =>
@@ -85,11 +93,11 @@ function JobDetail({ name, onBack }: { name: string; onBack: () => void }) {
   const job = detail.data?.job;
 
   const runCols: Column<JobRun>[] = [
-    { key: "id", header: "Run ID", render: (r) => <button className="link font-mono text-xs" onClick={() => setOpenRun(r)}>{r.id.slice(0, 14)}…</button> },
+    { key: "id", header: "Run ID", render: (r) => <button className="link font-mono text-xs" onClick={() => setOpenRunId(r.id)}>{r.id.slice(0, 14)}…</button> },
     { key: "status", header: "Status", render: (r) => <StatusBadge status={r.status} /> },
     { key: "started", header: "Started", render: (r) => formatDate(r.startedOn) },
     { key: "dur", header: "Duration", render: (r) => (r.executionTimeMs != null ? `${(r.executionTimeMs / 1000).toFixed(2)}s` : "—") },
-    { key: "view", header: "", className: "text-right", render: (r) => <button className="link text-xs" onClick={() => setOpenRun(r)}>View logs</button> },
+    { key: "view", header: "", className: "text-right", render: (r) => <button className="link text-xs" onClick={() => setOpenRunId(r.id)}>View logs</button> },
   ];
 
   const SUBS = [
@@ -171,7 +179,7 @@ function JobDetail({ name, onBack }: { name: string; onBack: () => void }) {
         </div>
       )}
 
-      <Modal open={!!openRun} title={`Run ${openRun?.id.slice(0, 14)}…`} onClose={() => setOpenRun(null)} wide footer={<button className="btn-default" onClick={() => setOpenRun(null)}>Close</button>}>
+      <Modal open={!!openRun} title={`Run ${openRun?.id.slice(0, 14)}…`} onClose={() => setOpenRunId(null)} wide footer={<button className="btn-default" onClick={() => setOpenRunId(null)}>Close</button>}>
         <div className="mb-2 flex items-center gap-3 text-sm">
           <StatusBadge status={openRun?.status} />
           {openRun?.executionTimeMs != null && <span className="text-ink-500">{(openRun.executionTimeMs / 1000).toFixed(2)}s</span>}
@@ -242,7 +250,9 @@ export function JobsTab() {
     <>
       <div className="mb-3 flex items-center justify-between gap-3">
         <p className="text-sm text-ink-500">
-          ETL jobs run <strong>locally in Docker</strong> ({data?.engine.PYTHON_IMAGE} · {data?.engine.SPARK_IMAGE}) — Floci has no Glue job API.
+          Jobs run <strong>locally in Docker</strong> on the official AWS Glue runtime image
+          ({data?.engine.defaultImage}) — the real <code>awsglue</code> libs + Spark, so unmodified
+          Glue scripts execute here. Floci has no Glue job API.
         </p>
         <button className="btn-primary shrink-0" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" /> Create job

@@ -12,6 +12,7 @@ import {
 } from "@aws-sdk/client-ec2";
 import { makeClient } from "../aws/clientFactory.js";
 import { asyncHandler, regionOf } from "../lib/http.js";
+import { removeInstanceContainers } from "../ec2/cleanup.js";
 
 function client(req: { header(n: string): string | undefined }) {
   return makeClient(EC2Client, { region: regionOf(req as never) });
@@ -76,7 +77,11 @@ ec2Router.post(
     const c = client(req);
     if (action === "start") await c.send(new StartInstancesCommand({ InstanceIds: ids }));
     else if (action === "stop") await c.send(new StopInstancesCommand({ InstanceIds: ids }));
-    else await c.send(new TerminateInstancesCommand({ InstanceIds: ids }));
+    else {
+      await c.send(new TerminateInstancesCommand({ InstanceIds: ids }));
+      // Floci leaves the backing container behind on terminate — remove it.
+      removeInstanceContainers(ids);
+    }
     res.json({ ok: true });
   }),
 );
