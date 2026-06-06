@@ -132,8 +132,8 @@ Once Docker Hub is updated, announce it:
 Run 20+ AWS services locally — Lambda, Glue, DynamoDB, S3, EC2, and more.
 Real runtimes, real code, completely free.
 
-Just pull & run:
-docker pull tanujsoni027/mimir-aws:backend
+One command to get started:
+curl -s https://raw.githubusercontent.com/tanuj24/mimir/v2/docker-compose.yml | docker compose -f - up -d
 
 No building. No config. Works offline.
 Open http://localhost:8080

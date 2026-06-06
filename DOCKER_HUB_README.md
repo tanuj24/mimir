@@ -15,11 +15,31 @@ Three production-ready images for a complete local AWS cloud:
 | `tanujsoni027/mimir-aws:server` | API proxy + Glue execution engine | ~299 MB |
 | `tanujsoni027/mimir-aws:web` | AWS-style console UI | ~62 MB |
 
-## Get Started in 30 seconds
+## Get Started in 10 seconds
 
-### Option 1: Docker Compose (Recommended)
+### Quickest Way (One Command)
 
-Create a `docker-compose.yml` file:
+```bash
+curl -s https://raw.githubusercontent.com/tanuj24/mimir/v2/docker-compose.yml | docker compose -f - up -d
+```
+
+That's it. **Open http://localhost:8080** — Mimir is running.
+
+---
+
+### Alternative: Create `docker-compose.yml` Manually
+
+If you prefer to keep the file locally:
+
+```bash
+# Download the compose file
+curl -O https://raw.githubusercontent.com/tanuj24/mimir/v2/docker-compose.yml
+
+# Run it
+docker compose up -d
+```
+
+Or create a `docker-compose.yml` file locally:
 
 ```yaml
 name: mimir
@@ -59,12 +79,12 @@ volumes:
   mimir-data:
 ```
 
-Then run:
+Then:
 ```bash
 docker compose up -d
 ```
 
-**Open http://localhost:8080** — that's it!
+**Open http://localhost:8080**
 
 ### Option 2: Individual Containers
 
@@ -209,11 +229,11 @@ aws --endpoint-url http://localhost:4566 dynamodb create-table \
 # Your Python/Node.js app points to http://localhost:4566
 ```
 
-## Default: Prebuilt Images (No Build Needed)
+## Prebuilt Images (No Build Needed)
 
-The images above are **prebuilt multi-arch** (amd64 + arm64). Just pull and run — nothing compiles locally.
+All images are **prebuilt multi-arch** (amd64 + arm64). Just run the one-liner above — nothing compiles locally. You'll be up in 10 seconds.
 
-### Advanced: Build from Source (For Contributors)
+### Advanced: Build from Source (For Contributors Only)
 
 If you want to modify the code and rebuild:
 
@@ -223,7 +243,7 @@ cd mimir
 docker compose up -d --build
 ```
 
-This rebuilds mimir-backend (Java/Quarkus), server (Node.js), and web (React) from your local changes.
+This rebuilds mimir-backend (Java/Quarkus), server (Node.js), and web (React) from your local changes. Only needed if you're developing Mimir itself.
 
 ## How It Works
 
@@ -276,8 +296,15 @@ A: The backend emulates 50+ services; the console UI covers the most popular one
 
 ## For Developers & Contributors
 
-- **GitHub Source Code**: https://github.com/tanuj24/mimir
-- **Build from Source**: `docker compose up -d --build` (requires repo clone)
+Want to modify the code and test locally?
+
+```bash
+git clone https://github.com/tanuj24/mimir.git
+cd mimir
+docker compose up -d --build
+```
+
+- **View Source Code**: https://github.com/tanuj24/mimir
 - **Report Issues**: https://github.com/tanuj24/mimir/issues
 - **Discussions & Feedback**: https://github.com/tanuj24/mimir/discussions
 
