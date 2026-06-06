@@ -16,7 +16,7 @@ import {
 } from "@/components/ui";
 
 function QueueDrawer({ queue, onClose }: { queue: Queue | null; onClose: () => void }) {
-  const [body, setBody] = useState('{\n  "hello": "floci"\n}');
+  const [body, setBody] = useState('{\n  "hello": "mimir"\n}');
   const [received, setReceived] = useState<{ messageId: string; body: string }[]>([]);
   const { notify } = useToast();
   const fifo = queue?.name?.endsWith(".fifo");

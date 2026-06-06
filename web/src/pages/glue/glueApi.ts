@@ -1,6 +1,6 @@
 import { api } from "@/lib/api";
 
-// ---- Data Catalog (real Floci) ----
+// ---- Data Catalog (real Mimir backend) ----
 export interface GlueDatabase {
   name: string;
   description?: string;
@@ -127,7 +127,7 @@ from awsglue.utils import getResolvedOptions
 args = getResolvedOptions(sys.argv, ["JOB_NAME"])
 print("Job", args["JOB_NAME"], "started at", datetime.utcnow().isoformat())
 
-# Example: talk to local AWS (Floci) via boto3 — endpoint is pre-wired.
+# Example: talk to local AWS (the Mimir backend) via boto3 — endpoint is pre-wired.
 import boto3
 s3 = boto3.client("s3")
 print("Buckets:", [b["Name"] for b in s3.list_buckets().get("Buckets", [])])
@@ -136,7 +136,7 @@ print("Done.")
 `,
   glueetl: `# AWS Glue — Spark (PySpark/Glue) job. Runs the real awsglue runtime via
 # spark-submit, so GlueContext, DynamicFrame and the Glue transforms work and
-# this exact AWS Glue script executes locally against Floci's S3/Catalog.
+# this exact AWS Glue script executes locally against the Mimir backend's S3/Catalog.
 import sys
 from awsglue.transforms import *
 from awsglue.utils import getResolvedOptions
@@ -160,11 +160,11 @@ dyf.toDF().show()
 print("Row count:", dyf.count())
 
 # Read straight from the local Glue Data Catalog (database + table must exist
-# under the Catalog tab). Reads the table's S3 data via Floci too:
+# under the Catalog tab). Reads the table's S3 data via the Mimir backend too:
 # src = glueContext.create_dynamic_frame.from_catalog(database="my_db", table_name="my_table")
 # src.toDF().show()
 
-# Read/write Floci S3 just like AWS, e.g.:
+# Read/write the Mimir backend S3 just like AWS, e.g.:
 # dyf.toDF().write.mode("overwrite").parquet("s3a://my-bucket/output/")
 
 job.commit()

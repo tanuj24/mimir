@@ -3,6 +3,33 @@
 All notable changes to Mimir are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+> The **`v2`** branch is where Mimir 2.x is developed. The **`main`** branch
+> continues the 1.x line.
+
+## [2.0.0] - Unreleased (v2 branch)
+
+Mimir 2.0 ditches the external Floci dependency and ships its **own local AWS
+cloud backend** in-repo, so the entire tool — console, proxy, and emulated AWS —
+builds and runs as a single bundle.
+
+### Added
+- **`mimir-backend/`** — the bundled local AWS cloud (Java / Quarkus emulator).
+  `docker compose up` builds and runs it directly; no external image required.
+
+### Changed
+- `docker compose` now builds and starts `mimir-backend` instead of pulling the
+  `floci/floci` image. The backend still serves the AWS edge on `localhost:4566`.
+- The proxy server points the AWS SDKs and the Glue engine at the Mimir backend.
+  Endpoint env vars are now `BACKEND_ENDPOINT` / `PUBLIC_BACKEND_ENDPOINT`
+  (legacy `FLOCI_ENDPOINT` is still honored). The health check uses the
+  backend's `/_mimir/health`, and EC2 instance containers are matched as
+  `mimir-ec2-<id>`.
+- Console branding and copy no longer reference Floci; the brand accent color
+  token is `mimir`.
+
+### Removed
+- The external Floci service from `docker-compose.yml` and all Floci references.
+
 ## [1.1] - 2026-06-06
 
 Mimir v1.1 makes the compute services run real workloads. AWS Glue jobs now

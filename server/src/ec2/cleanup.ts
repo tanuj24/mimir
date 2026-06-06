@@ -4,8 +4,8 @@ import { makeClient } from "../aws/clientFactory.js";
 import { config } from "../config.js";
 
 /**
- * Floci backs each EC2 instance with a Docker container named
- * `floci-ec2-<instance-id>`, but it does NOT remove that container when an
+ * the Mimir backend backs each EC2 instance with a Docker container named
+ * `mimir-ec2-<instance-id>`, but it does NOT remove that container when an
  * instance is terminated — leaving exited containers behind. We clean those up:
  *   - immediately when the user terminates instances (removeInstanceContainers)
  *   - periodically, for any orphan left by an earlier process (startEc2Reconcile)
@@ -16,13 +16,13 @@ import { config } from "../config.js";
  * container so it can be started again.
  */
 
-const PREFIX = "floci-ec2-";
+const PREFIX = "mimir-ec2-";
 
 function dockerRm(names: string[]): void {
   if (names.length) execFile("docker", ["rm", "-f", ...names], () => {});
 }
 
-/** Remove the Floci containers backing the given instance ids (on terminate). */
+/** Remove the the Mimir backend containers backing the given instance ids (on terminate). */
 export function removeInstanceContainers(ids: string[]): void {
   dockerRm(ids.filter(Boolean).map((id) => `${PREFIX}${id}`));
 }
@@ -39,7 +39,7 @@ async function liveInstanceIds(): Promise<Set<string>> {
   return live;
 }
 
-/** Periodically drop exited Floci EC2 containers whose instance is gone. */
+/** Periodically drop exited the Mimir backend EC2 containers whose instance is gone. */
 export function startEc2Reconcile(intervalMs = 60_000): void {
   const sweep = async () => {
     let live: Set<string>;

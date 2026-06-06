@@ -10,13 +10,13 @@ function ConnectionCard() {
     <div className="card flex items-center justify-between p-4">
       <div>
         <p className="text-sm text-ink-500">Connected backend</p>
-        <p className="font-mono text-sm">{data?.flociEndpoint ?? "…"}</p>
+        <p className="font-mono text-sm">{data?.backendEndpoint ?? "…"}</p>
       </div>
       <div className="flex items-center gap-2 text-sm">
         <Circle
-          className={`h-2.5 w-2.5 ${data?.flociReachable ? "fill-ok text-ok" : "fill-danger text-danger"}`}
+          className={`h-2.5 w-2.5 ${data?.backendReachable ? "fill-ok text-ok" : "fill-danger text-danger"}`}
         />
-        {data?.flociReachable ? "Floci reachable" : "Floci offline"}
+        {data?.backendReachable ? "Backend reachable" : "Backend offline"}
       </div>
     </div>
   );
@@ -32,11 +32,7 @@ export function Home() {
         <h1 className="text-2xl font-semibold">Console Home</h1>
         <p className="mt-1 text-sm text-ink-500">
           See your cloud, before you ship your cloud. Build and test against {SERVICES.length}{" "}
-          services locally — powered by{" "}
-          <a href="https://floci.io" target="_blank" rel="noreferrer" className="link">
-            Floci
-          </a>
-          .
+          services locally — on a bundled local AWS cloud that runs entirely on your machine.
         </p>
       </div>
 
@@ -71,7 +67,7 @@ export function Home() {
                     <s.icon className="h-5 w-5" />
                   </span>
                   <div className="min-w-0">
-                    <p className="flex items-center gap-1 font-medium group-hover:text-floci">
+                    <p className="flex items-center gap-1 font-medium group-hover:text-mimir">
                       {s.name}
                       <ArrowRight className="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100" />
                     </p>
@@ -100,7 +96,7 @@ export function Home() {
                     <Link
                       key={s.id}
                       to={s.available ? s.path : `/coming-soon/${s.id}`}
-                      className="flex items-center gap-2.5 rounded-lg border border-line bg-panel px-3 py-2 text-sm hover:border-floci/40 hover:bg-canvas"
+                      className="flex items-center gap-2.5 rounded-lg border border-line bg-panel px-3 py-2 text-sm hover:border-mimir/40 hover:bg-canvas"
                     >
                       <s.icon className="h-4 w-4 shrink-0" style={{ color: s.color }} />
                       <span className="flex-1 truncate">{s.name}</span>

@@ -84,7 +84,7 @@ function Notebook({ id, onBack }: { id: string; onBack: () => void }) {
         {/* input cell */}
         <div className="card overflow-hidden">
           <div className="flex items-stretch">
-            <div className="w-12 shrink-0 select-none border-r border-line bg-canvas/60 py-2 text-center font-mono text-xs text-floci">
+            <div className="w-12 shrink-0 select-none border-r border-line bg-canvas/60 py-2 text-center font-mono text-xs text-mimir">
               [ ]
             </div>
             <textarea
@@ -172,7 +172,7 @@ export function NotebookTab() {
   return (
     <>
       <div className="mb-3 flex items-center justify-between gap-3">
-        <p className="text-sm text-ink-500">Interactive notebooks run in a <strong>live local kernel</strong> (stateful across cells) — Floci has no Glue sessions API.</p>
+        <p className="text-sm text-ink-500">Interactive notebooks run in a <strong>live local kernel</strong> (stateful across cells) — the Mimir backend has no Glue sessions API.</p>
         <button className="btn-primary shrink-0" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" /> New notebook
         </button>
@@ -209,7 +209,7 @@ export function NotebookTab() {
             <button
               key={k}
               onClick={() => setKind(k)}
-              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${kind === k ? "border-floci bg-floci/5 text-floci" : "border-line hover:bg-canvas"}`}
+              className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${kind === k ? "border-mimir bg-mimir/5 text-mimir" : "border-line hover:bg-canvas"}`}
             >
               {k === "spark" ? <Flame className="h-4 w-4" /> : <FileCode2 className="h-4 w-4" />}
               {k === "spark" ? "Spark (PySpark)" : "Python"}

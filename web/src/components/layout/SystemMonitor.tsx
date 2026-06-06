@@ -71,7 +71,7 @@ export function SystemMonitor() {
         <span className="tabular-nums text-ink-700">{data?.containers ?? "…"}</span>
         <span className="hidden sm:inline">containers</span>
       </div>
-      <span className="ml-auto hidden text-ink-300 lg:inline">Floci, Glue jobs &amp; EC2 all run as local containers</span>
+      <span className="ml-auto hidden text-ink-300 lg:inline">the Mimir backend, Glue jobs &amp; EC2 all run as local containers</span>
     </div>
   );
 }

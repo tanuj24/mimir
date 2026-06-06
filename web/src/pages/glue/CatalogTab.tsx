@@ -114,7 +114,7 @@ export function CatalogTab() {
   return (
     <>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm text-ink-500">Databases &amp; tables — backed by Floci’s real Glue Data Catalog API.</p>
+        <p className="text-sm text-ink-500">Databases &amp; tables — backed by the Mimir backend’s real Glue Data Catalog API.</p>
         <button className="btn-primary" onClick={() => setCreateOpen(true)}>Add database</button>
       </div>
       <div className="card">

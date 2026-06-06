@@ -79,7 +79,7 @@ export function LambdaDetail({ name, onBack }: { name: string; onBack: () => voi
 
       <div className="mb-3 flex items-center gap-3">
         <h2 className="text-lg font-semibold">{name}</h2>
-        {fn?.runtime && <span className="rounded-full bg-floci/10 px-2 py-0.5 text-xs font-medium text-floci">{fn.runtime}</span>}
+        {fn?.runtime && <span className="rounded-full bg-mimir/10 px-2 py-0.5 text-xs font-medium text-mimir">{fn.runtime}</span>}
         {fn?.architectures?.[0] && <span className="rounded-full bg-ink-300/20 px-2 py-0.5 text-xs text-ink-700">{fn.architectures[0]}</span>}
         <StatusBadge status={fn?.state} />
         {fn?.lastUpdateStatus === "InProgress" && <span className="text-xs text-warn">updating…</span>}
@@ -89,7 +89,7 @@ export function LambdaDetail({ name, onBack }: { name: string; onBack: () => voi
         {TABS.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)}
             className={`-mb-px flex items-center gap-1.5 whitespace-nowrap border-b-2 px-4 py-2 text-sm font-medium ${
-              tab === t.id ? "border-floci text-floci" : "border-transparent text-ink-500 hover:text-ink-900"
+              tab === t.id ? "border-mimir text-mimir" : "border-transparent text-ink-500 hover:text-ink-900"
             }`}>
             <t.icon className="h-4 w-4" /> {t.label}
           </button>
@@ -323,7 +323,7 @@ function ConfigTab({ fn, onDone }: { fn: Detail; onDone: () => void }) {
         {fn.functionUrl?.url ? (
           <div className="mb-3 flex items-center gap-2 rounded border border-line bg-canvas px-3 py-2 text-sm">
             <code className="flex-1 truncate">{fn.functionUrl.url}</code>
-            <button className="rounded p-1 text-ink-500 hover:text-floci" title="Copy" onClick={() => navigator.clipboard.writeText(fn.functionUrl!.url!)}><Copy className="h-4 w-4" /></button>
+            <button className="rounded p-1 text-ink-500 hover:text-mimir" title="Copy" onClick={() => navigator.clipboard.writeText(fn.functionUrl!.url!)}><Copy className="h-4 w-4" /></button>
           </div>
         ) : (
           <p className="mb-3 text-sm text-ink-500">No function URL configured.</p>

@@ -1,23 +1,42 @@
 # Mimir — the whole stack in one command:
 #   docker compose up -d   →   open http://localhost:8080
 #
-# Bundles:
-#   floci         the local AWS backend (https://floci.io)
-#   mimir-server  the API/proxy + local Glue execution engine
-#   mimir-web     the console UI (nginx, proxies /api -> mimir-server)
+# Bundles (single repo, v2):
+#   mimir-backend  the local AWS emulator (Quarkus; built from ./mimir-backend)
+#   mimir-server   the API/proxy + local Glue execution engine
+#   mimir-web      the console UI (nginx, proxies /api -> mimir-server)
 
 name: mimir
 
 services:
-  floci:
-    image: floci/floci:latest
-    container_name: mimir-floci
+  mimir-backend:
+    build:
+      context: ./mimir-backend
+      dockerfile: docker/Dockerfile
+    container_name: mimir-backend
+    tty: true
     ports:
-      - "4566:4566"
+      - "4566:4566" # AWS edge / gateway
+      - "6379-6399:6379-6399" # ElastiCache / Redis
+      - "7001-7099:7001-7099" # RDS proxies
+      - "9200-9299:9200-9299" # OpenSearch
     volumes:
-      # Floci runs real engines (Lambda, RDS, …) as Docker containers.
+      # The backend runs real engines (Lambda, EC2, RDS, …) as Docker containers.
       - /var/run/docker.sock:/var/run/docker.sock
-      - floci-data:/app/data
+      - mimir-backend-data:/app/data
+    environment:
+      MIMIR_HOSTNAME: mimir-backend
+      MIMIR_BASE_URL: http://mimir:4566
+      MIMIR_SERVICES_DOCKER_NETWORK: mimir_default
+      MIMIR_SERVICES_RDS_PROXY_BASE_PORT: "7001"
+      MIMIR_SERVICES_LAMBDA_HOT_RELOAD_ENABLED: "true"
+    networks:
+      default:
+        # Aliases so MIMIR_BASE_URL (http://mimir:4566) and any LocalStack-parity
+        # hostnames resolve on the compose network.
+        aliases:
+          - mimir
+          - localhost.mimir.local
     restart: unless-stopped
 
   mimir-server:
@@ -26,17 +45,18 @@ services:
       dockerfile: server/Dockerfile
     container_name: mimir-server
     depends_on:
-      - floci
+      mimir-backend:
+        condition: service_healthy
     environment:
-      FLOCI_ENDPOINT: http://floci:4566        # server -> floci (internal network)
-      PUBLIC_FLOCI_ENDPOINT: http://localhost:4566  # browser-facing (presigned URLs)
+      BACKEND_ENDPOINT: http://mimir:4566 # server -> backend (internal network)
+      PUBLIC_BACKEND_ENDPOINT: http://localhost:4566 # browser-facing (presigned URLs)
       AWS_REGION: us-east-1
       AWS_ACCESS_KEY_ID: mimir
       AWS_SECRET_ACCESS_KEY: mimir
       PORT: "4000"
       GLUE_WORK_DIR: /tmp/mimir-glue
       # Glue job/notebook containers run on the HOST daemon (not this compose
-      # network), so they reach Floci via the host gateway, not the `floci` name.
+      # network), so they reach the backend via the host gateway's published port.
       GLUE_AWS_ENDPOINT: http://host.docker.internal:4566
     ports:
       - "4000:4000"
@@ -59,4 +79,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  floci-data:
+  mimir-backend-data:
+
+networks:
+  default:
+    name: mimir_default

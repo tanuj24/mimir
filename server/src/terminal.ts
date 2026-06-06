@@ -7,8 +7,8 @@ import { spawn as ptySpawn } from "node-pty";
 /**
  * Browser terminal for EC2 instances.
  *
- * Floci backs each EC2 instance with a real Docker container named
- * `floci-ec2-<instance-id>`. We bridge a WebSocket to a PTY running
+ * the Mimir backend backs each EC2 instance with a real Docker container named
+ * `mimir-ec2-<instance-id>`. We bridge a WebSocket to a PTY running
  * `docker exec -it <container> <shell>`, so the console gets a genuine
  * interactive shell — Mimir's take on EC2 Instance Connect.
  *
@@ -57,7 +57,7 @@ const SHELL_INIT = [
 ].join("\n");
 
 function startSession(ws: WebSocket, instanceId: string): void {
-  const container = `floci-ec2-${instanceId}`;
+  const container = `mimir-ec2-${instanceId}`;
 
   // node-pty gives the host side of the TTY; `docker exec -it` allocates the
   // matching TTY inside the container. `-e TERM` is set before bash starts so

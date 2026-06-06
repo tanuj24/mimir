@@ -107,7 +107,7 @@ export function JobConfigForm({
         <h3 className="mb-1 text-sm font-semibold uppercase tracking-wide text-ink-500">Libraries</h3>
         <p className="mb-4 text-xs text-ink-500">
           Comma-separated <code>s3://</code> or <code>https://</code> paths. <code>s3://</code> is fetched from
-          Floci’s S3 at run time, then passed to the runtime.
+          the Mimir backend’s S3 at run time, then passed to the runtime.
         </p>
         <div className="space-y-4">
           <Field label="Python library path" hint="--extra-py-files (.py / .zip / .egg / .whl)">

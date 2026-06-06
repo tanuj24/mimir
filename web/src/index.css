@@ -18,7 +18,7 @@
     @apply inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
   }
   .btn-primary {
-    @apply btn border-floci bg-floci text-white hover:bg-floci-dark;
+    @apply btn border-mimir bg-mimir text-white hover:bg-mimir-dark;
   }
   .btn-default {
     @apply btn border-ink-300 bg-white text-ink-900 hover:bg-canvas;

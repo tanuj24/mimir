@@ -17,7 +17,7 @@ function client(req: { header(n: string): string | undefined }) {
 export const kafkaRouter = Router();
 
 // Create a provisioned MSK cluster. Subnets/security groups are placeholders —
-// Floci doesn't enforce real VPC wiring, so sensible defaults keep the UI simple.
+// the Mimir backend doesn't enforce real VPC wiring, so sensible defaults keep the UI simple.
 kafkaRouter.post(
   "/clusters",
   asyncHandler(async (req, res) => {

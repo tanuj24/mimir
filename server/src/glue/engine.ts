@@ -12,7 +12,7 @@ import { config } from "../config.js";
 /**
  * Local AWS-Glue-style execution engine.
  *
- * Floci does NOT implement Glue jobs or interactive sessions, so FlociUI runs
+ * the Mimir backend does NOT implement Glue jobs or interactive sessions, so Mimir runs
  * them locally in Docker using the OFFICIAL AWS Glue runtime images. These
  * bundle the exact libraries a real Glue job ships with — the `awsglue` package
  * (GlueContext, DynamicFrame, the Glue transforms, Job, getResolvedOptions), a
@@ -22,10 +22,10 @@ import { config } from "../config.js";
  *   - Python shell jobs  -> Glue image, `python script.py` (awsglue on PYTHONPATH)
  *   - Notebooks/sessions -> a long-lived kernel container with stateful exec
  *
- * Containers are wired to Floci's emulated AWS (S3 via the s3a connector, boto3
+ * Containers are wired to the Mimir backend's emulated AWS (S3 via the s3a connector, boto3
  * via AWS_ENDPOINT_URL) so jobs can read/write real local buckets.
  *
- * Catalog (databases/tables) is handled separately against Floci's real API.
+ * Catalog (databases/tables) is handled separately against the Mimir backend's real API.
  */
 
 // glueVersion -> the official AWS Glue libs image that matches that runtime.
@@ -47,13 +47,13 @@ function glueImage(glueVersion: string): string {
 }
 
 /**
- * Endpoint the job/kernel containers use to reach Floci. They run on the HOST
- * docker daemon (not the compose network), so they reach Floci's published port
- * via the host gateway, not the internal `floci` hostname. Overridable.
+ * Endpoint the job/kernel containers use to reach the Mimir backend. They run on the HOST
+ * docker daemon (not the compose network), so they reach the Mimir backend's published port
+ * via the host gateway, not the internal `mimir` hostname. Overridable.
  */
 const RUNTIME_ENDPOINT = process.env.GLUE_AWS_ENDPOINT ?? "http://host.docker.internal:4566";
 
-/** `-e KEY=VALUE` args that point boto3/AWS SDKs inside the container at Floci. */
+/** `-e KEY=VALUE` args that point boto3/AWS SDKs inside the container at the Mimir backend. */
 function awsEnvArgs(): string[] {
   const env: Record<string, string> = {
     AWS_REGION: config.region,
@@ -69,7 +69,7 @@ function awsEnvArgs(): string[] {
 }
 
 /**
- * Spark confs that point the runtime at Floci so unmodified Glue code "just
+ * Spark confs that point the runtime at the Mimir backend so unmodified Glue code "just
  * works" against the local stack:
  *   - fs.s3a.*          -> DataFrame/DynamicFrame S3 reads & writes
  *   - fs.s3.impl        -> route real catalog s3:// locations through S3A
@@ -93,7 +93,7 @@ function s3aConf(): string[] {
       "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider",
     ],
     // Real catalog tables store s3:// locations — route that scheme through S3A
-    // so from_catalog can read them against Floci's S3.
+    // so from_catalog can read them against the Mimir backend's S3.
     ["spark.hadoop.fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem"],
     // Glue Data Catalog — Hive metastore client (spark.sql against db.table)
     ["spark.hadoop.aws.glue.endpoint", RUNTIME_ENDPOINT],
@@ -106,8 +106,8 @@ function s3aConf(): string[] {
  * getCatalogSource) gets its endpoint from EndpointConfig, which loads two
  * classpath resources — `glue-default.conf` and `glue-override.conf`. Neither
  * exists in the local image, so it NPEs and falls back to the REAL AWS Glue
- * endpoint. We write both files (pointing at Floci) into the run/session dir
- * and put that dir on the driver classpath, so from_catalog hits Floci.
+ * endpoint. We write both files (pointing at the Mimir backend) into the run/session dir
+ * and put that dir on the driver classpath, so from_catalog hits the Mimir backend.
  */
 function glueCatalogConfContent(): string {
   const ep = RUNTIME_ENDPOINT;
@@ -378,7 +378,7 @@ function splitList(s: string): string[] {
 /**
  * Resolve s3:// and http(s):// artifacts into the run's work dir, returning the
  * in-container (CONTAINER_WORK/...) paths. Local bare filenames are passed
- * through as-is. s3:// is fetched from Floci's S3 — so "extra py files / jars"
+ * through as-is. s3:// is fetched from the Mimir backend's S3 — so "extra py files / jars"
  * work like AWS.
  */
 async function resolveArtifacts(uris: string[], dir: string, log: (s: string) => void): Promise<string[]> {
@@ -397,7 +397,7 @@ async function resolveArtifacts(uris: string[], dir: string, log: (s: string) =>
         writeFileSync(dest, Buffer.from(bytes));
         makeWorldReadable(dir, dest);
         out.push(`${CONTAINER_WORK}/${name}`);
-        log(`[flociui] fetched ${uri} -> ${CONTAINER_WORK}/${name} (${bytes.length} bytes)\n`);
+        log(`[mimir] fetched ${uri} -> ${CONTAINER_WORK}/${name} (${bytes.length} bytes)\n`);
       } else if (uri.startsWith("http://") || uri.startsWith("https://")) {
         const name = basename(new URL(uri).pathname) || `artifact-${out.length}`;
         const buf = Buffer.from(await (await fetch(uri)).arrayBuffer());
@@ -405,12 +405,12 @@ async function resolveArtifacts(uris: string[], dir: string, log: (s: string) =>
         writeFileSync(dest, buf);
         makeWorldReadable(dir, dest);
         out.push(`${CONTAINER_WORK}/${name}`);
-        log(`[flociui] downloaded ${uri} -> ${CONTAINER_WORK}/${name} (${buf.length} bytes)\n`);
+        log(`[mimir] downloaded ${uri} -> ${CONTAINER_WORK}/${name} (${buf.length} bytes)\n`);
       } else {
         out.push(uri); // pass through (already a container path / module name)
       }
     } catch (e) {
-      log(`[flociui] WARNING: could not resolve ${uri}: ${(e as Error).message}\n`);
+      log(`[mimir] WARNING: could not resolve ${uri}: ${(e as Error).message}\n`);
     }
   }
   return out;
@@ -448,7 +448,7 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
   makeWorldReadable(dir, scriptPath);
 
   try {
-    // Resolve libraries from Floci S3 / URLs into the work dir.
+    // Resolve libraries from the Mimir backend S3 / URLs into the work dir.
     const pyFiles = await resolveArtifacts(splitList(cfg.extraPyFiles), dir, log);
     const files = await resolveArtifacts(splitList(cfg.extraFiles), dir, log);
     const jars = isSpark ? await resolveArtifacts(splitList(cfg.extraJars), dir, log) : [];
@@ -563,7 +563,7 @@ function shellJoin(parts: string[]): string {
 // ---------- sessions / notebooks ----------
 const KERNEL = `
 import sys, json, io, contextlib, traceback
-g = {"__name__": "__floci__"}
+g = {"__name__": "__mimir__"}
 def emit(o):
     sys.stdout.write(json.dumps(o) + "\\n"); sys.stdout.flush()
 emit({"ready": True})
@@ -605,9 +605,9 @@ function spawnKernel(session: LiveSession): void {
   // GlueContext/DynamicFrame/transforms) plus boto3/pandas are importable. The
   // image already has pyspark + py4j + awsglue on PYTHONPATH.
   const image = process.env.GLUE_SESSION_IMAGE ?? glueImage(DEFAULT_GLUE_VERSION);
-  // Spark: pin a local master, point s3a + catalog at Floci, and put the kernel
+  // Spark: pin a local master, point s3a + catalog at the Mimir backend, and put the kernel
   // dir (with glue-*.conf) on the driver classpath so GlueContext(sc) and
-  // from_catalog hit Floci. /k holds kernel.py and the catalog conf.
+  // from_catalog hit the Mimir backend. /k holds kernel.py and the catalog conf.
   let innerCmd: string;
   if (isSpark) {
     const sparkArgs = ["--master", "local[*]", "--conf", "spark.driver.extraClassPath=/k:$DEFCP", ...s3aConf(), "pyspark-shell"].join(" ");

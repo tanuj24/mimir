@@ -133,7 +133,7 @@ function JobDetail({ name, onBack }: { name: string; onBack: () => void }) {
             key={t.id}
             onClick={() => setSub(t.id)}
             className={`-mb-px flex items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium ${
-              sub === t.id ? "border-floci text-floci" : "border-transparent text-ink-500 hover:text-ink-900"
+              sub === t.id ? "border-mimir text-mimir" : "border-transparent text-ink-500 hover:text-ink-900"
             }`}
           >
             <t.icon className="h-4 w-4" />
@@ -252,7 +252,7 @@ export function JobsTab() {
         <p className="text-sm text-ink-500">
           Jobs run <strong>locally in Docker</strong> on the official AWS Glue runtime image
           ({data?.engine.defaultImage}) — the real <code>awsglue</code> libs + Spark, so unmodified
-          Glue scripts execute here. Floci has no Glue job API.
+          Glue scripts execute here. the Mimir backend has no Glue job API.
         </p>
         <button className="btn-primary shrink-0" onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" /> Create job
@@ -296,7 +296,7 @@ export function JobsTab() {
                 <button
                   key={t}
                   onClick={() => setForm({ ...form, type: t })}
-                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${form.type === t ? "border-floci bg-floci/5 text-floci" : "border-line hover:bg-canvas"}`}
+                  className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${form.type === t ? "border-mimir bg-mimir/5 text-mimir" : "border-line hover:bg-canvas"}`}
                 >
                   {t === "glueetl" ? <Flame className="h-4 w-4" /> : <FileCode2 className="h-4 w-4" />}
                   {t === "glueetl" ? "Spark (PySpark)" : "Python shell"}

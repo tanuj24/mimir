@@ -1,0 +1,380 @@
+package io.github.tanuj.mimir.services.athena;
+
+import com.fasterxml.jackson.core.type.TypeReference;
+import io.github.tanuj.mimir.config.EmulatorConfig;
+import io.github.tanuj.mimir.core.common.AwsException;
+import io.github.tanuj.mimir.core.common.CsvParser;
+import io.github.tanuj.mimir.core.storage.StorageBackend;
+import io.github.tanuj.mimir.core.storage.StorageFactory;
+import io.github.tanuj.mimir.services.athena.model.*;
+import io.github.tanuj.mimir.services.glue.model.Column;
+import io.github.tanuj.mimir.services.mimir.MimirDuckClient;
+import io.github.tanuj.mimir.services.glue.GlueService;
+import io.github.tanuj.mimir.services.glue.model.Database;
+import io.github.tanuj.mimir.services.glue.model.Table;
+import io.github.tanuj.mimir.services.s3.S3Service;
+import io.github.tanuj.mimir.services.s3.model.S3Object;
+import io.vertx.core.Vertx;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import org.jboss.logging.Logger;
+
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.*;
+
+@ApplicationScoped
+public class AthenaService {
+
+    private static final Logger LOG = Logger.getLogger(AthenaService.class);
+    public static final String DEFAULT_CATALOG = "AwsDataCatalog";
+    private static final String DEFAULT_OUTPUT_BUCKET = "mimir-athena-results";
+
+    private final StorageBackend<String, QueryExecution> queryStore;
+    private final MimirDuckClient duckClient;
+    private final GlueService glueService;
+    private final S3Service s3Service;
+    private final EmulatorConfig config;
+    private final Vertx vertx;
+
+    @Inject
+    public AthenaService(StorageFactory storageFactory,
+                         MimirDuckClient duckClient,
+                         GlueService glueService,
+                         S3Service s3Service,
+                         EmulatorConfig config,
+                         Vertx vertx) {
+        this.queryStore = storageFactory.create("athena", "queries.json",
+                new TypeReference<>() {});
+        this.duckClient = duckClient;
+        this.glueService = glueService;
+        this.s3Service = s3Service;
+        this.config = config;
+        this.vertx = vertx;
+    }
+
+    public String startQueryExecution(String query,
+                                      String workGroup,
+                                      QueryExecutionContext context,
+                                      ResultConfiguration resultConfiguration) {
+        String id = UUID.randomUUID().toString();
+        String database = context != null && context.getDatabase() != null ? context.getDatabase() : "default";
+        QueryExecutionContext resolvedContext = context != null ? context : new QueryExecutionContext();
+        resolvedContext.setDatabase(database);
+        if (resolvedContext.getCatalog() == null || resolvedContext.getCatalog().isBlank()) {
+            resolvedContext.setCatalog(DEFAULT_CATALOG);
+        }
+
+        // Ensure output location has a trailing slash so mimir-duck writes into the prefix
+        String outputLocation = resolveOutputLocation(resultConfiguration, id);
+        ResultConfiguration resolvedResult = new ResultConfiguration(outputLocation);
+
+        QueryExecution execution = new QueryExecution(id, query, workGroup, resolvedResult, resolvedContext);
+        execution.getStatus().setState(QueryExecutionState.RUNNING);
+        queryStore.put(id, execution);
+
+        if (config.services().athena().mock()) {
+            execution.getStatus().setState(QueryExecutionState.SUCCEEDED);
+            execution.getStatus().setCompletionDateTime(Instant.now());
+            queryStore.put(id, execution);
+            LOG.infov("Query {0} accepted (mock mode)", id);
+            return id;
+        }
+
+        // Submit async — caller gets the ID immediately while execution runs in background
+        vertx.executeBlocking(() -> {
+            String setupDdl = buildGlueDdl(database);
+            ensureOutputBucket(outputLocation);
+            duckClient.execute(query, setupDdl, outputLocation + "results.csv");
+            return null;
+        }).onSuccess(v -> {
+            execution.getStatus().setState(QueryExecutionState.SUCCEEDED);
+            execution.getStatus().setCompletionDateTime(Instant.now());
+            queryStore.put(id, execution);
+            LOG.infov("Query {0} succeeded", id);
+        }).onFailure(e -> {
+            execution.getStatus().setState(QueryExecutionState.FAILED);
+            execution.getStatus().setStateChangeReason(e.getMessage());
+            queryStore.put(id, execution);
+            LOG.warnv("Query {0} failed: {1}", id, e.getMessage());
+        });
+
+        return id;
+    }
+
+    public QueryExecution getQueryExecution(String id) {
+        return queryStore.get(id)
+                .orElseThrow(() -> new AwsException("InvalidRequestException",
+                        "Query execution not found: " + id, 400));
+    }
+
+    public List<QueryExecution> listQueryExecutions() {
+        return queryStore.scan(k -> true);
+    }
+
+    public void stopQueryExecution(String id) {
+        QueryExecution execution = getQueryExecution(id);
+        execution.getStatus().setState(QueryExecutionState.CANCELLED);
+        execution.getStatus().setCompletionDateTime(Instant.now());
+        queryStore.put(id, execution);
+    }
+
+    public Map<String, Object> getWorkGroup(String name) {
+        return Map.of(
+                "Name", name == null || name.isBlank() ? "primary" : name,
+                "State", "ENABLED",
+                "Configuration", Map.of(
+                        "EngineVersion", Map.of(
+                                "SelectedEngineVersion", "Athena engine version 3",
+                                "EffectiveEngineVersion", "Athena engine version 3"
+                        ),
+                        "ResultConfiguration", Map.of("OutputLocation", "s3://" + DEFAULT_OUTPUT_BUCKET + "/results/"),
+                        "EnforceWorkGroupConfiguration", false,
+                        "PublishCloudWatchMetricsEnabled", false,
+                        "RequesterPaysEnabled", false
+                )
+        );
+    }
+
+    public List<Map<String, Object>> listWorkGroups() {
+        return List.of(Map.of("Name", "primary", "State", "ENABLED"));
+    }
+
+    public List<Map<String, Object>> listDataCatalogs() {
+        return List.of(Map.of("CatalogName", DEFAULT_CATALOG, "Type", "GLUE"));
+    }
+
+    public Map<String, Object> getDataCatalog(String name) {
+        return Map.of("Name", name == null || name.isBlank() ? DEFAULT_CATALOG : name, "Type", "GLUE");
+    }
+
+    public List<Map<String, Object>> listDatabases(String catalog) {
+        return glueService.getDatabases().stream()
+                .map(Database::getName)
+                .sorted()
+                .map(name -> Map.<String, Object>of("Name", name))
+                .toList();
+    }
+
+    public List<Map<String, Object>> listTableMetadata(String catalog, String database) {
+        return glueService.getTables(database).stream()
+                .sorted(Comparator.comparing(Table::getName))
+                .map(table -> tableMetadata(catalog, database, table))
+                .toList();
+    }
+
+    public Map<String, Object> getTableMetadata(String catalog, String database, String tableName) {
+        return tableMetadata(catalog, database, glueService.getTable(database, tableName));
+    }
+
+    public ResultSet getQueryResults(String id) {
+        QueryExecution execution = getQueryExecution(id);
+
+        if (execution.getStatus().getState() != QueryExecutionState.SUCCEEDED) {
+            throw new AwsException("InvalidRequestException", "Query has not succeeded yet", 400);
+        }
+
+        if (config.services().athena().mock()
+                || execution.getResultConfiguration() == null
+                || execution.getResultConfiguration().getOutputLocation() == null) {
+            return new ResultSet(List.of(), new ResultSet.ResultSetMetadata(List.of()));
+        }
+
+        return readResultsFromS3(execution.getResultConfiguration().getOutputLocation(), id);
+    }
+
+    // ── private helpers ───────────────────────────────────────────────────────
+
+    private String buildGlueDdl(String database) {
+        StringBuilder sb = new StringBuilder();
+        try {
+            List<Table> tables = glueService.getTables(database);
+            for (Table table : tables) {
+                String location = table.getStorageDescriptor() != null
+                        ? table.getStorageDescriptor().getLocation()
+                        : null;
+                if (location == null || location.isBlank()) {
+                    continue;
+                }
+                String readFn = inferReadFunction(table);
+                String normalizedLocation = location.endsWith("/")
+                        ? location.substring(0, location.length() - 1) : location;
+                sb.append("CREATE OR REPLACE VIEW \"")
+                  .append(table.getName())
+                  .append("\" AS SELECT * FROM ")
+                  .append(readExpression(readFn, normalizedLocation))
+                  .append(";\n");
+            }
+        } catch (Exception e) {
+            LOG.debugv("Could not inject Glue DDL for database {0}: {1}", database, e.getMessage());
+        }
+        return sb.toString();
+    }
+
+    private String readExpression(String readFn, String normalizedLocation) {
+        String glob = normalizedLocation + "/**";
+        if ("read_parquet".equals(readFn)) {
+            return "read_parquet('" + glob + "', union_by_name = true)";
+        }
+        return readFn + "('" + glob + "')";
+    }
+
+    private String inferReadFunction(Table table) {
+        if (table.getStorageDescriptor() == null) {
+            return "read_csv_auto";
+        }
+        String format = table.getStorageDescriptor().getInputFormat();
+        String serde = table.getStorageDescriptor().getSerdeInfo() != null
+                ? table.getStorageDescriptor().getSerdeInfo().getSerializationLibrary()
+                : null;
+        if (containsIgnoreCase(format, "parquet") || containsIgnoreCase(serde, "parquet")) {
+            return "read_parquet";
+        }
+        if (containsIgnoreCase(format, "json") || containsIgnoreCase(serde, "json")
+                || containsIgnoreCase(format, "hive")) {
+            return "read_json_auto";
+        }
+        return "read_csv_auto";
+    }
+
+    private static boolean containsIgnoreCase(String str, String sub) {
+        return str != null && str.toLowerCase().contains(sub);
+    }
+
+    private String resolveOutputLocation(ResultConfiguration rc, String queryId) {
+        String base = (rc != null && rc.getOutputLocation() != null && !rc.getOutputLocation().isBlank())
+                ? rc.getOutputLocation()
+                : "s3://" + DEFAULT_OUTPUT_BUCKET + "/results/";
+        return base.endsWith("/") ? base + queryId + "/" : base + "/" + queryId + "/";
+    }
+
+    private void ensureOutputBucket(String s3Path) {
+        String bucket = extractBucket(s3Path);
+        if (bucket != null) {
+            try {
+                s3Service.createBucket(bucket, config.defaultRegion());
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private ResultSet readResultsFromS3(String outputLocation, String queryId) {
+        try {
+            String bucket = extractBucket(outputLocation);
+            String prefix = extractKey(outputLocation);
+            if (bucket == null) {
+                return emptyResultSet();
+            }
+
+            List<S3Object> objects = s3Service.listObjects(bucket, prefix, null, 10);
+            Optional<S3Object> csv = objects.stream()
+                    .filter(o -> o.getKey().endsWith(".csv"))
+                    .findFirst()
+                    .map(o -> s3Service.getObject(bucket, o.getKey()));
+
+            if (csv.isEmpty()) {
+                return emptyResultSet();
+            }
+
+            return parseCsv(csv.get().getData());
+        } catch (Exception e) {
+            LOG.warnv("Could not read query results for {0}: {1}", queryId, e.getMessage());
+            return emptyResultSet();
+        }
+    }
+
+    private ResultSet parseCsv(byte[] data) {
+        List<ResultSet.Row> rows = new ArrayList<>();
+        List<ResultSet.ColumnInfo> columns = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(
+                new InputStreamReader(new ByteArrayInputStream(data), StandardCharsets.UTF_8))) {
+
+            String headerLine = reader.readLine();
+            if (headerLine == null) {
+                return emptyResultSet();
+            }
+
+            String[] headers = CsvParser.parseLine(headerLine).toArray(String[]::new);
+            for (String h : headers) {
+                columns.add(new ResultSet.ColumnInfo(DEFAULT_CATALOG, "", "", h, "varchar"));
+            }
+
+            // Header row is included in GetQueryResults per AWS spec
+            rows.add(toRow(headers));
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                rows.add(toRow(CsvParser.parseLine(line).toArray(String[]::new)));
+            }
+        } catch (Exception e) {
+            LOG.debugv("CSV parse error: {0}", e.getMessage());
+        }
+
+        return new ResultSet(rows, new ResultSet.ResultSetMetadata(columns));
+    }
+
+    private Map<String, Object> tableMetadata(String catalog, String database, Table table) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("Name", table.getName());
+        metadata.put("CreateTime", table.getCreateTime() != null ? table.getCreateTime() : Instant.now());
+        metadata.put("LastAccessTime", table.getLastAccessTime() != null ? table.getLastAccessTime() : Instant.now());
+        metadata.put("TableType", table.getTableType() != null ? table.getTableType() : "EXTERNAL_TABLE");
+        metadata.put("Columns", athenaColumns(table));
+        metadata.put("Parameters", table.getParameters() != null ? table.getParameters() : Map.of());
+        return metadata;
+    }
+
+    private List<Map<String, String>> athenaColumns(Table table) {
+        if (table.getStorageDescriptor() == null || table.getStorageDescriptor().getColumns() == null) {
+            return List.of();
+        }
+        return table.getStorageDescriptor().getColumns().stream()
+                .map(column -> Map.of(
+                        "Name", column.getName(),
+                        "Type", glueTypeToAthena(column)
+                ))
+                .toList();
+    }
+
+    private String glueTypeToAthena(Column column) {
+        String type = column.getType() == null ? "string" : column.getType().toLowerCase(Locale.ROOT);
+        if (type.equals("string") || type.equals("char") || type.equals("varchar")
+                || type.startsWith("struct<") || type.startsWith("array<") || type.startsWith("map<")) {
+            return "varchar";
+        }
+        return type;
+    }
+
+    private ResultSet.Row toRow(String[] values) {
+        List<ResultSet.Datum> data = new ArrayList<>();
+        for (String v : values) {
+            data.add(new ResultSet.Datum(v));
+        }
+        return new ResultSet.Row(data);
+    }
+
+    private String extractBucket(String s3Path) {
+        if (s3Path == null || !s3Path.startsWith("s3://")) {
+            return null;
+        }
+        String without = s3Path.substring(5);
+        int slash = without.indexOf('/');
+        return slash < 0 ? without : without.substring(0, slash);
+    }
+
+    private String extractKey(String s3Path) {
+        if (s3Path == null || !s3Path.startsWith("s3://")) {
+            return "";
+        }
+        String without = s3Path.substring(5);
+        int slash = without.indexOf('/');
+        return slash < 0 ? "" : without.substring(slash + 1);
+    }
+
+    private ResultSet emptyResultSet() {
+        return new ResultSet(List.of(), new ResultSet.ResultSetMetadata(List.of()));
+    }
+}

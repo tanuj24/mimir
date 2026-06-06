@@ -125,7 +125,7 @@ export function MetricsPage() {
             columns={columns}
             rows={data?.metrics ?? []}
             rowKey={(m) => `${m.namespace}/${m.name}/${m.dimensions.map((d) => d.value).join("-")}`}
-            empty={<EmptyState icon={Activity} title="No metrics" description="Metrics appear once services emit datapoints to Floci." />}
+            empty={<EmptyState icon={Activity} title="No metrics" description="Metrics appear once services emit datapoints to the Mimir backend." />}
           />
         )}
       </div>

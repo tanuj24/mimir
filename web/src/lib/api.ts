@@ -25,7 +25,7 @@ async function handle(res: Response) {
 
 function headers(extra?: Record<string, string>) {
   return {
-    "x-floci-region": getRegion(),
+    "x-mimir-region": getRegion(),
     ...extra,
   };
 }

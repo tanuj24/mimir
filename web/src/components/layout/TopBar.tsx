@@ -12,14 +12,14 @@ function HealthDot() {
     queryFn: () => api.get("/health"),
     refetchInterval: 15000,
   });
-  const reachable = data?.flociReachable;
+  const reachable = data?.backendReachable;
   return (
     <div className="flex items-center gap-1.5 text-xs text-ink-300">
       <Circle
         className={`h-2.5 w-2.5 ${reachable ? "fill-ok text-ok" : "fill-danger text-danger"}`}
       />
       <span className="hidden sm:inline">
-        {reachable === undefined ? "…" : reachable ? "Floci connected" : "Floci offline"}
+        {reachable === undefined ? "…" : reachable ? "Backend connected" : "Backend offline"}
       </span>
     </div>
   );
@@ -57,7 +57,7 @@ function RegionMenu() {
                 key={r.id}
                 onClick={() => pick(r.id)}
                 className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-sm hover:bg-canvas ${
-                  r.id === region ? "font-semibold text-floci" : ""
+                  r.id === region ? "font-semibold text-mimir" : ""
                 }`}
               >
                 <span>{r.name}</span>
@@ -158,15 +158,12 @@ export function TopBar() {
         </svg>
         <span className="hidden font-semibold sm:inline">Mimir</span>
       </Link>
-      <a
-        href="https://floci.io"
-        target="_blank"
-        rel="noreferrer"
-        className="hidden items-center rounded bg-squid-800 px-1.5 py-0.5 text-[11px] text-ink-300 hover:text-white md:inline-flex"
-        title="Mimir uses Floci as its local cloud backend"
+      <span
+        className="hidden items-center rounded bg-squid-800 px-1.5 py-0.5 text-[11px] text-ink-300 md:inline-flex"
+        title="Mimir bundles its own local AWS cloud backend"
       >
-        Powered by Floci
-      </a>
+        Local AWS cloud
+      </span>
       <GlobalSearch />
       <div className="ml-auto flex items-center gap-3">
         <HealthDot />

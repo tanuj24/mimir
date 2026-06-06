@@ -1,0 +1,17 @@
+# CODEOWNERS for mimir
+#
+# Scopes release-sensitive paths to the primary maintainer so CI, release
+# config, and Dockerfile changes always trigger a review ping. Add more
+# owners as the maintainer roster grows.
+#
+# Docs: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default: no global owner (unowned files fall through to normal review rules).
+
+# CI, release automation, workflow hygiene
+/.github/                @mimir-local
+/.releaserc.json         @mimir-local
+/pom.xml                 @mimir-local
+
+# Container build surface
+/docker/                 @mimir-local

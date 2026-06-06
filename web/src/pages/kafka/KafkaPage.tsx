@@ -213,7 +213,7 @@ export function KafkaPage() {
             columns={columns}
             rows={data?.clusters ?? []}
             rowKey={(c) => c.arn}
-            empty={<EmptyState icon={Radio} title="No clusters" description="Create an MSK cluster with the button above, or via the AWS CLI/SDK against Floci." />}
+            empty={<EmptyState icon={Radio} title="No clusters" description="Create an MSK cluster with the button above, or via the AWS CLI/SDK against the Mimir backend." />}
           />
         )}
       </div>

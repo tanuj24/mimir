@@ -121,7 +121,7 @@ export function BucketDetailPage() {
             className="flex items-center gap-2 font-medium text-link hover:underline"
             onClick={() => setPrefix(r.key)}
           >
-            <Folder className="h-4 w-4 text-floci" />
+            <Folder className="h-4 w-4 text-mimir" />
             {r.name}/
           </button>
         ) : (
@@ -226,7 +226,7 @@ export function BucketDetailPage() {
       </div>
 
       {selected.size > 0 && (
-        <div className="mb-3 flex items-center justify-between rounded-lg border border-floci/30 bg-floci/5 px-4 py-2 text-sm">
+        <div className="mb-3 flex items-center justify-between rounded-lg border border-mimir/30 bg-mimir/5 px-4 py-2 text-sm">
           <span>{selected.size} selected</span>
           <button className="btn-danger" onClick={() => setConfirmDelete(true)}>
             <Trash2 className="h-4 w-4" /> Delete

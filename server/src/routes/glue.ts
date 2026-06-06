@@ -17,7 +17,7 @@ function client(req: { header(n: string): string | undefined }) {
 export const glueRouter = Router();
 
 // ============================================================
-// Data Catalog — backed by Floci's REAL Glue API
+// Data Catalog — backed by the Mimir backend's REAL Glue API
 // ============================================================
 glueRouter.get(
   "/databases",
@@ -76,7 +76,7 @@ glueRouter.get(
 );
 
 // ============================================================
-// ETL jobs — executed LOCALLY in Docker (Floci has no Glue job API)
+// ETL jobs — executed LOCALLY in Docker (the Mimir backend has no Glue job API)
 // ============================================================
 glueRouter.get(
   "/jobs",
