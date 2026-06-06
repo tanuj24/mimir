@@ -20,7 +20,7 @@ Three production-ready images for a complete local AWS cloud:
 ### Quickest Way (One Command)
 
 ```bash
-curl -s https://raw.githubusercontent.com/tanuj24/mimir/v2/docker-compose.yml | docker compose -f - up -d
+curl -s https://raw.githubusercontent.com/tanuj24/mimir/main/docker-compose.yml | docker compose -f - up -d
 ```
 
 That's it. **Open http://localhost:8080** — Mimir is running.

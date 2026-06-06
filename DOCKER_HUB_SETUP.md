@@ -1,5 +1,11 @@
 # Docker Hub Profile & Repository Setup
 
+> ⚠️ **Publish only after v2 is merged to main**
+> 
+> These setup instructions are ready but should not be published to Docker Hub until the v2 branch is merged into main. Once merged, all curl commands will work with the main branch.
+>
+> v1 releases are not published to Docker Hub — only v2 and beyond will use Docker Hub prebuilt images.
+
 ## Step 1: Update Your Profile Bio
 
 Go to: https://hub.docker.com/settings/profile
@@ -174,13 +180,16 @@ Docker Hub's search will pick these up from:
 
 ## Checklist
 
+- [ ] v2 branch is merged to main (prerequisite)
 - [ ] Profile bio updated (name, bio, website)
 - [ ] Repository short description updated
 - [ ] Full description (README) pasted
-- [ ] Homepage/docs/source links added
+- [ ] Homepage/docs/source links added (optional for users)
 - [ ] Topics added (15+ tags)
 - [ ] Individual tag descriptions added (optional but helpful)
 - [ ] Verify multi-arch displays correctly
+- [ ] Images are built and pushed to Docker Hub
+- [ ] Verify curl command works: `curl -s https://raw.githubusercontent.com/tanuj24/mimir/main/docker-compose.yml | docker compose -f - up -d`
 - [ ] Share on GitHub, Twitter, or community boards
 
 Done! Your Docker Hub profile is now fully optimized for discoverability.
