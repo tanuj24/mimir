@@ -13,9 +13,7 @@ Tanuj Soni — Mimir Cloud
 ```
 Building Mimir — a free, local AWS emulator for developers. 
 Real runtimes (Lambda, Glue), 20+ services, console UI.
-No internet, no AWS account needed.
-
-GitHub: github.com/tanuj24/mimir
+No internet, no AWS account needed. Pull and run instantly.
 ```
 
 **Location:** (optional, your choice)
@@ -43,22 +41,14 @@ Local AWS emulator — run Lambda, Glue, DynamoDB, S3, EC2, and 20+ services loc
 **Full Description:**
 Open a text editor, copy the contents of `/Users/tanuj/github/mimir/DOCKER_HUB_README.md` and paste it into the **Description** field on Docker Hub. (The long markdown file we just created.)
 
-### Repository Links
+### Repository Links (Optional)
 
-**Homepage:**
-```
-https://github.com/tanuj24/mimir
-```
+Leave these blank or link to your own documentation site. Users don't need these — they can start immediately with the README.
 
-**Documentation:**
-```
-https://github.com/tanuj24/mimir#readme
-```
-
-**Source:**
-```
-https://github.com/tanuj24/mimir
-```
+*Optional:*
+- **Homepage:** Your website or project landing page
+- **Documentation:** Your docs site (if you build one)
+- **Source:** https://github.com/tanuj24/mimir (only for developers who want to view/contribute code)
 
 ### Public Content
 
@@ -131,28 +121,33 @@ But `tanujsoni027/mimir-aws` is fine and already published — no need to change
 
 ---
 
-## Step 7: Promote via Social / GitHub
+## Step 7: Promote via Social
 
-Once updated, you can link:
+Once Docker Hub is updated, announce it:
 
-- **GitHub README** → Docker Hub profile
-- **GitHub Releases** → mention "prebuilt images: `docker pull tanujsoni027/mimir-aws:backend`"
-- **Twitter/LinkedIn** → announce the prebuilt images
-
-Example tweet:
+**Example Tweet/LinkedIn Post:**
 ```
-🎉 Mimir v2 is live!
+🎉 Mimir v2 is live on Docker Hub!
 
 Run 20+ AWS services locally — Lambda, Glue, DynamoDB, S3, EC2, and more.
 Real runtimes, real code, completely free.
 
-Pull the images:
-docker pull tanujsoni027/mimir-aws
+Just pull & run:
+docker pull tanujsoni027/mimir-aws:backend
 
-No building needed. Works offline. Open http://localhost:8080
+No building. No config. Works offline.
+Open http://localhost:8080
 
-GitHub: github.com/tanuj24/mimir
+Get started: hub.docker.com/r/tanujsoni027/mimir-aws
 ```
+
+**For developers who want to contribute:**
+- Link to GitHub for source code: github.com/tanuj24/mimir
+- Link to GitHub issues/discussions for feedback
+
+**For end-users:**
+- Only link to Docker Hub and this README
+- No GitHub needed
 
 ---
 

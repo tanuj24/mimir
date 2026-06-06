@@ -17,14 +17,85 @@ Three production-ready images for a complete local AWS cloud:
 
 ## Get Started in 30 seconds
 
-```bash
-git clone https://github.com/tanuj24/mimir.git
-cd mimir
-docker compose up -d
-# Open http://localhost:8080
+### Option 1: Docker Compose (Recommended)
+
+Create a `docker-compose.yml` file:
+
+```yaml
+name: mimir
+services:
+  mimir-backend:
+    image: tanujsoni027/mimir-aws:backend
+    ports:
+      - "4566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - mimir-data:/app/data
+    restart: unless-stopped
+
+  mimir-server:
+    image: tanujsoni027/mimir-aws:server
+    depends_on:
+      - mimir-backend
+    environment:
+      BACKEND_ENDPOINT: http://mimir-backend:4566
+      PUBLIC_BACKEND_ENDPOINT: http://localhost:4566
+    ports:
+      - "4000:4000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /tmp/mimir-glue:/tmp/mimir-glue
+    restart: unless-stopped
+
+  mimir-web:
+    image: tanujsoni027/mimir-aws:web
+    depends_on:
+      - mimir-server
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+
+volumes:
+  mimir-data:
 ```
 
-That's it. No config, no keys, no internet needed.
+Then run:
+```bash
+docker compose up -d
+```
+
+**Open http://localhost:8080** — that's it!
+
+### Option 2: Individual Containers
+
+```bash
+# Start the backend
+docker run -d --name mimir-backend \
+  -p 4566:4566 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  tanujsoni027/mimir-aws:backend
+
+# Start the server
+docker run -d --name mimir-server \
+  -p 4000:4000 \
+  -e BACKEND_ENDPOINT=http://mimir-backend:4566 \
+  -e PUBLIC_BACKEND_ENDPOINT=http://localhost:4566 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  --link mimir-backend \
+  tanujsoni027/mimir-aws:server
+
+# Start the web UI
+docker run -d --name mimir-web \
+  -p 8080:80 \
+  --link mimir-server \
+  tanujsoni027/mimir-aws:web
+```
+
+**Open http://localhost:8080**
+
+---
+
+That's it. No config files, no keys, no internet needed.
 
 ## What You Get
 
@@ -138,19 +209,21 @@ aws --endpoint-url http://localhost:4566 dynamodb create-table \
 # Your Python/Node.js app points to http://localhost:4566
 ```
 
-## Development vs Production
+## Default: Prebuilt Images (No Build Needed)
 
-### For Users (Pull Prebuilt Images)
-```bash
-docker compose up -d
-# Pulls tanujsoni027/mimir-aws:* from Docker Hub — instant start
-```
+The images above are **prebuilt multi-arch** (amd64 + arm64). Just pull and run — nothing compiles locally.
 
-### For Contributors (Build from Source)
+### Advanced: Build from Source (For Contributors)
+
+If you want to modify the code and rebuild:
+
 ```bash
+git clone https://github.com/tanuj24/mimir.git
+cd mimir
 docker compose up -d --build
-# Rebuilds from mimir-backend/, server/, web/ sources
 ```
+
+This rebuilds mimir-backend (Java/Quarkus), server (Node.js), and web (React) from your local changes.
 
 ## How It Works
 
@@ -201,17 +274,17 @@ A: Yes. Pull the images in your CI, start with `docker compose up -d`, run tests
 **Q: What if a service isn't in the console?**  
 A: The backend emulates 50+ services; the console UI covers the most popular ones. CLI/SDK access works for all.
 
-## Links
+## For Developers & Contributors
 
-- **GitHub**: https://github.com/tanuj24/mimir
-- **GitHub Docs**: https://github.com/tanuj24/mimir#readme
-- **Issue Tracker**: https://github.com/tanuj24/mimir/issues
-- **Discussions**: https://github.com/tanuj24/mimir/discussions
+- **GitHub Source Code**: https://github.com/tanuj24/mimir
+- **Build from Source**: `docker compose up -d --build` (requires repo clone)
+- **Report Issues**: https://github.com/tanuj24/mimir/issues
+- **Discussions & Feedback**: https://github.com/tanuj24/mimir/discussions
 
 ## License
 
-[MIT License](https://github.com/tanuj24/mimir/blob/main/LICENSE) — free to use, modify, distribute.
+MIT — free to use, modify, distribute.
 
 ---
 
-**Latest:** v2 — Real runtimes, bundled backend, prebuilt multi-arch images. [See changes](https://github.com/tanuj24/mimir/releases/tag/v2.0.0).
+**Latest:** v2 — Real runtimes, bundled backend, prebuilt multi-arch images.
