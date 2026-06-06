@@ -1,8 +1,12 @@
 # Mimir — the whole stack in one command:
 #   docker compose up -d   →   open http://localhost:8080
 #
+# By default this PULLS the prebuilt images from Docker Hub (tanujsoni027/mimir-aws),
+# so nothing compiles locally. To build from source instead (for development),
+# run:  docker compose up -d --build
+#
 # Bundles (single repo, v2):
-#   mimir-backend  the local AWS emulator (Quarkus; built from ./mimir-backend)
+#   mimir-backend  the local AWS emulator (Quarkus)
 #   mimir-server   the API/proxy + local Glue execution engine
 #   mimir-web      the console UI (nginx, proxies /api -> mimir-server)
 
@@ -10,6 +14,7 @@ name: mimir
 
 services:
   mimir-backend:
+    image: tanujsoni027/mimir-aws:backend
     build:
       context: ./mimir-backend
       dockerfile: docker/Dockerfile
@@ -40,6 +45,7 @@ services:
     restart: unless-stopped
 
   mimir-server:
+    image: tanujsoni027/mimir-aws:server
     build:
       context: .
       dockerfile: server/Dockerfile
@@ -68,6 +74,7 @@ services:
     restart: unless-stopped
 
   mimir-web:
+    image: tanujsoni027/mimir-aws:web
     build:
       context: .
       dockerfile: web/Dockerfile

@@ -15,6 +15,10 @@ builds and runs as a single bundle.
 ### Added
 - **`mimir-backend/`** — the bundled local AWS cloud (Java / Quarkus emulator).
   `docker compose up` builds and runs it directly; no external image required.
+- **Prebuilt multi-arch images** (amd64 + arm64) published to Docker Hub at
+  `tanujsoni027/mimir-aws` (tags `:backend`, `:server`, `:web`). `docker compose
+  up -d` now pulls these by default — nothing compiles locally; use `--build`
+  to build from source instead.
 
 ### Changed
 - `docker compose` now builds and starts `mimir-backend` instead of pulling the

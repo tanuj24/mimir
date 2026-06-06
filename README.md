@@ -67,12 +67,19 @@ docker compose up -d
 
 Open **http://localhost:8080**.
 
-That one command builds and brings up three services:
-- **mimir-backend** (the bundled local AWS cloud, port 4566) — built from [`mimir-backend/`](mimir-backend/)
+That one command **pulls** the prebuilt multi-arch images (amd64 + arm64) from
+Docker Hub ([`tanujsoni027/mimir-aws`](https://hub.docker.com/r/tanujsoni027/mimir-aws)) and starts three services:
+- **mimir-backend** (the bundled local AWS cloud, port 4566)
 - **Mimir server** (the API proxy + Glue engine)
 - **Mimir web** (the console)
 
-> The backend is a Java/Quarkus app, so the **first** `docker compose up` compiles it and may take several minutes. Subsequent runs are cached.
+Nothing compiles locally — you don't even need the source, just the
+`docker-compose.yml`. To build from source instead (for development), add
+`--build`:
+
+```bash
+docker compose up -d --build   # build everything from this repo
+```
 
 The backend stays on `localhost:4566`, so your existing AWS CLI/SDKs can hit the same local cloud:
 
