@@ -31,7 +31,8 @@ function readBody(req) {
 }
 
 function send(res, status, body) {
-  const json = JSON.stringify(body);
+  // DuckDB returns 64-bit integers as BigInt; convert to Number for JSON serialisation.
+  const json = JSON.stringify(body, (_, v) => (typeof v === 'bigint' ? Number(v) : v));
   res.writeHead(status, { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(json) });
   res.end(json);
 }
@@ -57,6 +58,7 @@ function configureS3(conn, body) {
   const style     = body.s3_url_style    || 'path';
 
   return exec(conn, `
+    INSTALL httpfs;
     LOAD httpfs;
     SET s3_endpoint='${endpoint}';
     SET s3_region='${region}';

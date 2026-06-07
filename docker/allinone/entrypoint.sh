@@ -5,6 +5,13 @@ set -u
 
 mkdir -p /run/nginx /app/data /tmp/mimir-glue
 
+# The backend's embedded DNS server resolves its own hostnames (used by Lambda
+# and mimir-duck containers started via Docker) — but the duck sidecar running
+# in THIS container uses the system resolver which doesn't know those hostnames.
+# Register them in /etc/hosts so all in-process services can resolve them.
+echo "127.0.0.1 localhost.mimir.local" >> /etc/hosts
+echo "127.0.0.1 localhost.localstack.cloud" >> /etc/hosts
+
 pids=()
 term() {
   echo "[mimir] shutting down…"

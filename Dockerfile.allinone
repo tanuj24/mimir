@@ -28,26 +28,32 @@ RUN npm install
 COPY web/ ./
 RUN npm run build
 
-# ---- proxy server (tsc + compiled native deps for THIS node ABI) ----
-FROM node:20-alpine AS server-build
+# ---- proxy server: TypeScript + native deps compiled on Debian Bullseye (glibc 2.31) ----
+# Bullseye glibc 2.31 < Ubuntu Jammy glibc 2.35, so produced binaries run on the runtime.
+FROM node:20-bullseye AS server-build
 WORKDIR /app
-ENV npm_config_nodedir=/usr/local
-# node-pty is a native addon — needs a toolchain to compile against musl.
-RUN sed -i 's/https/http/' /etc/apk/repositories \
- && apk add --no-cache python3 build-base linux-headers \
- && ln -sf /usr/bin/python3 /usr/bin/python
+RUN apt-get update && apt-get install -y --no-install-recommends python3 build-essential \
+    && rm -rf /var/lib/apt/lists/*
 COPY package-lock.json server/package.json server/tsconfig.json ./
+# npm install compiles node-pty (native addon) against the Bullseye Node 20 ABI.
 RUN npm install
 COPY server/src ./src
-RUN npm run build
+# Compile TypeScript, then prune dev deps so only production node_modules ships.
+RUN npm run build && npm prune --omit=dev
+
+# ---- mimir-duck: DuckDB HTTP sidecar — download pre-built glibc binary ----
+# On glibc Debian the npm install downloads a pre-built DuckDB .node file — no compilation.
+FROM node:20-bullseye AS duck-build
+WORKDIR /app
+COPY mimir-duck/package.json ./
+RUN npm install --omit=dev
 
 # ---- docker CLI (for the Glue engine + EC2 terminal) ----
-# Use the latest cli image: its Go toolchain is current, which clears the
-# golang stdlib CVEs that older docker:27-cli carried.
 FROM docker:cli AS docker-source
 
-# ---- runtime: JRE + node binary + nginx + docker CLI ----
-FROM eclipse-temurin:25-jre-alpine
+# ---- runtime: JRE (Ubuntu Jammy/glibc 2.35) + Node 20 + nginx ----
+# Ubuntu/glibc runtime: pre-built DuckDB binaries and compiled node-pty both run natively.
+FROM eclipse-temurin:25-jre-jammy
 ENV NODE_ENV=production \
     BACKEND_ENDPOINT=http://127.0.0.1:4566 \
     PUBLIC_BACKEND_ENDPOINT=http://localhost:4566 \
@@ -62,43 +68,42 @@ ENV NODE_ENV=production \
     MIMIR_BASE_URL=http://host.docker.internal:4566 \
     MIMIR_SERVICES_DUCK_URL=http://127.0.0.1:3000
 
-# Runtime needs only the node BINARY (+ nginx, bash, docker CLI). npm and the
-# build toolchain are added ONLY to compile native deps, then removed — npm
-# bundles its own (vulnerable) copies of tar/minimatch/etc., so it must not ship.
-# `apk upgrade` pulls the latest patched base packages (e.g. libpng).
-RUN apk upgrade --no-cache libpng \
- && apk add --no-cache nodejs nginx bash ca-certificates gcompat libc6-compat
+# System packages: Node 20 (NodeSource), nginx, wget for health checks.
+# No build tools needed — native addons were compiled in the build stages above.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates curl gnupg wget \
+ && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+ && apt-get install -y --no-install-recommends nodejs nginx \
+ && rm -rf /var/lib/apt/lists/*
+
 COPY --from=docker-source /usr/local/bin/docker /usr/local/bin/docker
 
-# server: install production deps here so node-pty (native) is compiled against
-# THIS image's node, then drop npm + the throwaway toolchain.
+# server: copy pre-built TS output and production node_modules (with compiled node-pty).
 WORKDIR /app/server
-COPY package-lock.json server/package.json ./
-RUN apk add --no-cache --virtual .build npm python3 build-base linux-headers nodejs-dev \
- && ln -sf /usr/bin/python3 /usr/bin/python \
- && npm install --omit=dev && npm cache clean --force \
- && apk del .build
+COPY server/package.json ./
 COPY --from=server-build /app/dist ./dist
+COPY --from=server-build /app/node_modules ./node_modules
 
-# mimir-duck: DuckDB HTTP sidecar for Athena + S3 Select query execution.
-# duckdb is a native addon — must be compiled against THIS image's node ABI.
-# cmake is required by duckdb's CMake build system.
+# mimir-duck: copy server script + production node_modules (pre-built DuckDB binary).
+# Pre-install the httpfs extension here (Ubuntu Jammy glibc 2.35 satisfies DuckDB's 2.32 req).
+# The extension is baked into this layer so queries need no network access at runtime.
 WORKDIR /app/duck
-COPY mimir-duck/package.json ./
 COPY mimir-duck/server.js ./
-RUN apk add --no-cache --virtual .duck-build npm python3 build-base linux-headers nodejs-dev \
- && npm install --omit=dev && npm cache clean --force \
- && apk del .duck-build
+COPY --from=duck-build /app/node_modules ./node_modules
+RUN node -e "const d=require('./node_modules/duckdb');const db=new d.Database(':memory:');db.exec('INSTALL httpfs;',function(e){if(e)console.error('[duck] httpfs pre-install failed:',e.message);else console.log('[duck] httpfs pre-installed');db.close();});" || true
 
-# backend
+# backend (Quarkus)
 COPY --from=backend-build /build/target/quarkus-app /app/backend/quarkus-app
 
-# web static + nginx config
+# web console
 COPY --from=web-build /app/dist /usr/share/nginx/html
-COPY docker/allinone/nginx.conf /etc/nginx/http.d/default.conf
+# Ubuntu nginx uses conf.d; remove the default site to avoid conflicts.
+COPY docker/allinone/nginx.conf /etc/nginx/conf.d/mimir.conf
+RUN rm -f /etc/nginx/sites-enabled/default
 
 COPY docker/allinone/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && mkdir -p /app/data /tmp/mimir-glue /run/nginx /root/.duckdb/extensions
+RUN chmod +x /entrypoint.sh \
+ && mkdir -p /app/data /tmp/mimir-glue /run/nginx /root/.duckdb/extensions
 
 # 80 = console, 4566 = AWS edge (so AWS CLI/SDKs can hit it), 4000 = proxy
 EXPOSE 80 4566 4000

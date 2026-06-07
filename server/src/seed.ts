@@ -62,6 +62,7 @@ import {
 import {
   GlueClient,
   CreateDatabaseCommand,
+  CreateTableCommand as GlueCreateTableCommand,
   CreateJobCommand,
   GetJobCommand,
 } from "@aws-sdk/client-glue";
@@ -152,8 +153,38 @@ async function seedS3() {
     "  data/users.json    - Sample user records\n" +
     "  data/products.json - Sample product catalog\n" +
     "  data/orders.csv    - Sample order history\n" +
-    "  logs/              - Sample application logs\n",
+    "  logs/              - Sample application logs\n" +
+    "  tables/            - CSV files for Glue catalog / Athena queries\n",
     "text/plain"
+  );
+
+  // CSV files for Glue catalog tables — each table gets its own prefix folder.
+  await put("tables/orders/orders.csv",
+    "order_id,user_id,product,amount,status,created_at\n" +
+    "o1,u1,Widget Pro,29.99,shipped,2024-04-01T08:00:00Z\n" +
+    "o2,u2,DataSync API,49.99,pending,2024-04-02T11:30:00Z\n" +
+    "o3,u3,CloudAdapter,99.00,delivered,2024-04-03T14:00:00Z\n" +
+    "o4,u1,DataSync API,49.99,shipped,2024-04-04T09:00:00Z\n" +
+    "o5,u2,Widget Pro,29.99,cancelled,2024-04-05T16:00:00Z\n",
+    "text/csv"
+  );
+
+  await put("tables/users/users.csv",
+    "user_id,name,email,role,created_at\n" +
+    "u1,Alice Johnson,alice@example.com,admin,2024-01-15T10:00:00Z\n" +
+    "u2,Bob Smith,bob@example.com,developer,2024-02-20T14:30:00Z\n" +
+    "u3,Carol White,carol@example.com,analyst,2024-03-05T09:15:00Z\n" +
+    "u4,David Lee,david@example.com,developer,2024-03-20T11:00:00Z\n",
+    "text/csv"
+  );
+
+  await put("tables/products/products.csv",
+    "product_id,name,price,category,stock\n" +
+    "p1,Widget Pro,29.99,hardware,142\n" +
+    "p2,DataSync API,49.99,software,999\n" +
+    "p3,CloudAdapter,99.00,software,500\n" +
+    "p4,ServerMon,19.99,monitoring,1500\n",
+    "text/csv"
   );
 }
 
@@ -524,6 +555,53 @@ async function seedGlue() {
     ExecutionProperty: { MaxConcurrentRuns: 1 },
     Timeout: 10,
   } as never)).catch(ignore(["AlreadyExistsException"]));
+
+  // Glue catalog tables — each points to a CSV prefix in mimir-sample-data.
+  // AthenaService builds `read_csv_auto('s3://bucket/tables/NAME/**')` from these.
+  const csvTable = (name: string, columns: { Name: string; Type: string }[]) =>
+    cl.send(new GlueCreateTableCommand({
+      DatabaseName: "mimir_sample_db",
+      TableInput: {
+        Name: name,
+        TableType: "EXTERNAL_TABLE",
+        StorageDescriptor: {
+          Location: `s3://mimir-sample-data/tables/${name}`,
+          InputFormat: "org.apache.hadoop.mapred.TextInputFormat",
+          OutputFormat: "org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat",
+          SerdeInfo: {
+            SerializationLibrary: "org.apache.hadoop.hive.serde2.lazy.LazySimpleSerDe",
+            Parameters: { "field.delim": "," },
+          },
+          Columns: columns,
+        },
+        Parameters: { EXTERNAL: "TRUE", "skip.header.line.count": "1" },
+      },
+    })).catch(ignore(["AlreadyExistsException"]));
+
+  await csvTable("orders", [
+    { Name: "order_id",   Type: "string" },
+    { Name: "user_id",    Type: "string" },
+    { Name: "product",    Type: "string" },
+    { Name: "amount",     Type: "double" },
+    { Name: "status",     Type: "string" },
+    { Name: "created_at", Type: "string" },
+  ]);
+
+  await csvTable("users", [
+    { Name: "user_id",    Type: "string" },
+    { Name: "name",       Type: "string" },
+    { Name: "email",      Type: "string" },
+    { Name: "role",       Type: "string" },
+    { Name: "created_at", Type: "string" },
+  ]);
+
+  await csvTable("products", [
+    { Name: "product_id", Type: "string" },
+    { Name: "name",       Type: "string" },
+    { Name: "price",      Type: "double" },
+    { Name: "category",   Type: "string" },
+    { Name: "stock",      Type: "int" },
+  ]);
 }
 
 // ---------------------------------------------------------------------------

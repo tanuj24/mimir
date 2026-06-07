@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   Search,
   Play,
@@ -10,72 +10,76 @@ import {
   Table2,
   Clock,
   CheckCircle2,
-  XCircle,
   Loader2,
   History,
   HardDrive,
+  RefreshCw,
 } from "lucide-react";
 import { athenaApi, type QueryExecution, type AthenaTable } from "./athenaApi";
-import { PageHeader, LoadingBlock, ErrorState, EmptyState, useToast } from "@/components/ui";
+import {
+  PageHeader,
+  LoadingBlock,
+  ErrorState,
+  EmptyState,
+  useToast,
+  type Column,
+  DataTable,
+} from "@/components/ui";
 import { formatDate } from "@/lib/format";
 
-// ---- helpers ----
-
-function StateIcon({ state }: { state: QueryExecution["state"] | undefined }) {
-  if (!state || state === "QUEUED" || state === "RUNNING")
-    return <Loader2 className="h-4 w-4 animate-spin text-amber-500" />;
-  if (state === "SUCCEEDED") return <CheckCircle2 className="h-4 w-4 text-green-600" />;
-  return <XCircle className="h-4 w-4 text-danger" />;
-}
+// ---- tiny helpers ----
 
 function StateBadge({ state }: { state: QueryExecution["state"] | undefined }) {
-  const base = "rounded px-1.5 py-0.5 text-xs font-medium";
   if (!state) return null;
-  if (state === "SUCCEEDED") return <span className={`${base} bg-green-100 text-green-700`}>SUCCEEDED</span>;
-  if (state === "FAILED") return <span className={`${base} bg-red-100 text-danger`}>FAILED</span>;
-  if (state === "CANCELLED") return <span className={`${base} bg-ink-100 text-ink-500`}>CANCELLED</span>;
-  return <span className={`${base} bg-amber-100 text-amber-700`}>{state}</span>;
+  if (state === "SUCCEEDED")
+    return <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-ok/10 text-ok">SUCCEEDED</span>;
+  if (state === "FAILED")
+    return <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-danger/10 text-danger">FAILED</span>;
+  if (state === "CANCELLED")
+    return <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-ink-300/20 text-ink-500">CANCELLED</span>;
+  return <span className="rounded px-1.5 py-0.5 text-xs font-medium bg-warn/10 text-warn">{state}</span>;
 }
 
 function fmtMs(ms?: number) {
   if (!ms) return "—";
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(2)}s`;
+  return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(2)} s`;
 }
 
 function fmtBytes(b?: number) {
   if (!b) return "—";
   if (b < 1024) return `${b} B`;
-  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`;
-  return `${(b / 1024 / 1024).toFixed(2)} MB`;
+  if (b < 1048576) return `${(b / 1024).toFixed(1)} KB`;
+  return `${(b / 1048576).toFixed(2)} MB`;
 }
 
-function sqlPreview(sql?: string, max = 80) {
+function sqlSnippet(sql?: string, max = 72) {
   if (!sql) return "—";
   const s = sql.replace(/\s+/g, " ").trim();
   return s.length > max ? s.slice(0, max) + "…" : s;
 }
 
-// ---- left panel: database + table browser ----
+// ---- data catalog panel ----
 
-function TableTree({ table }: { db: string; table: AthenaTable }) {
+function TableRow({ table }: { table: AthenaTable }) {
   const [open, setOpen] = useState(false);
   return (
     <div>
       <button
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-1 rounded px-2 py-1 text-left text-xs text-ink-700 hover:bg-surface-raised"
+        className="flex w-full items-center gap-1.5 rounded px-2 py-1 text-left hover:bg-canvas"
       >
-        {open ? <ChevronDown className="h-3 w-3 flex-none" /> : <ChevronRight className="h-3 w-3 flex-none" />}
-        <Table2 className="h-3 w-3 flex-none text-mimir" />
-        <span className="truncate font-mono">{table.name}</span>
+        {open
+          ? <ChevronDown className="h-3 w-3 flex-none text-ink-300" />
+          : <ChevronRight className="h-3 w-3 flex-none text-ink-300" />}
+        <Table2 className="h-3.5 w-3.5 flex-none text-mimir" />
+        <span className="truncate font-mono text-xs text-ink-700">{table.name}</span>
       </button>
       {open && (
-        <div className="ml-6 border-l border-line pl-2">
+        <div className="ml-6 mt-0.5 space-y-0.5 border-l border-line pl-2 pb-1">
           {table.columns.map((c) => (
-            <div key={c.name} className="flex items-baseline gap-1 py-0.5">
-              <span className="font-mono text-xs text-ink-800 truncate">{c.name}</span>
-              <span className="font-mono text-xs text-ink-400 shrink-0">{c.type}</span>
+            <div key={c.name} className="flex items-baseline gap-2">
+              <span className="font-mono text-xs text-ink-700 truncate">{c.name}</span>
+              <span className="font-mono text-xs text-ink-300 shrink-0">{c.type}</span>
             </div>
           ))}
         </div>
@@ -84,19 +88,19 @@ function TableTree({ table }: { db: string; table: AthenaTable }) {
   );
 }
 
-function DatabaseTree({
-  db,
-  selected,
-  onSelect,
+function DbRow({
+  name,
+  active,
+  onActivate,
 }: {
-  db: string;
-  selected: boolean;
-  onSelect: () => void;
+  name: string;
+  active: boolean;
+  onActivate: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const tablesQ = useQuery({
-    queryKey: ["athena", "tables", db],
-    queryFn: () => athenaApi.tables(db),
+    queryKey: ["athena", "tables", name],
+    queryFn: () => athenaApi.tables(name),
     enabled: open,
   });
 
@@ -105,29 +109,38 @@ function DatabaseTree({
       <div className="flex items-center gap-1">
         <button
           onClick={() => setOpen((o) => !o)}
-          className="flex flex-1 items-center gap-1.5 rounded px-2 py-1.5 text-left text-sm hover:bg-surface-raised"
+          className="flex flex-1 items-center gap-1.5 rounded px-2 py-1.5 text-left hover:bg-canvas"
         >
-          {open ? <ChevronDown className="h-3.5 w-3.5 flex-none text-ink-400" /> : <ChevronRight className="h-3.5 w-3.5 flex-none text-ink-400" />}
+          {open
+            ? <ChevronDown className="h-3.5 w-3.5 flex-none text-ink-300" />
+            : <ChevronRight className="h-3.5 w-3.5 flex-none text-ink-300" />}
           <Database className="h-3.5 w-3.5 flex-none text-mimir" />
-          <span className={`truncate font-medium text-xs ${selected ? "text-mimir" : "text-ink-800"}`}>{db}</span>
+          <span className={`truncate text-sm font-medium ${active ? "text-mimir" : "text-ink-700"}`}>
+            {name}
+          </span>
         </button>
         <button
-          onClick={onSelect}
-          title="Use as query context"
-          className={`mr-1 rounded px-1.5 py-0.5 text-xs ${selected ? "bg-mimir text-white" : "text-ink-500 hover:bg-surface-raised"}`}
+          onClick={onActivate}
+          title={active ? "Active query context" : "Set as query context"}
+          className={`mr-2 shrink-0 rounded px-2 py-0.5 text-xs font-medium transition-colors ${
+            active
+              ? "bg-mimir text-white"
+              : "border border-line text-ink-500 hover:border-mimir hover:text-mimir"
+          }`}
         >
-          {selected ? "active" : "use"}
+          {active ? "active" : "use"}
         </button>
       </div>
+
       {open && (
-        <div className="ml-3">
+        <div className="ml-3 mb-1">
           {tablesQ.isLoading ? (
-            <p className="px-2 py-1 text-xs text-ink-400">Loading…</p>
+            <p className="px-3 py-1 text-xs text-ink-300">Loading…</p>
           ) : (tablesQ.data?.tables ?? []).length === 0 ? (
-            <p className="px-2 py-1 text-xs text-ink-400">No tables</p>
+            <p className="px-3 py-1 text-xs text-ink-300">No tables</p>
           ) : (
             (tablesQ.data?.tables ?? []).map((t) => (
-              <TableTree key={t.name} db={db} table={t} />
+              <TableRow key={t.name} table={t} />
             ))
           )}
         </div>
@@ -138,15 +151,24 @@ function DatabaseTree({
 
 // ---- results table ----
 
-function ResultsTable({ columns, rows }: { columns: string[]; rows: string[][] }) {
-  if (columns.length === 0) return <p className="px-4 py-6 text-center text-sm text-ink-400">Query returned no columns.</p>;
+function QueryResultsTable({ columns, rows }: { columns: string[]; rows: string[][] }) {
+  if (columns.length === 0)
+    return (
+      <p className="px-4 py-8 text-center text-sm text-ink-500">
+        Query returned no columns.
+      </p>
+    );
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
-        <thead className="sticky top-0 bg-surface-raised">
-          <tr>
+        <thead>
+          <tr className="border-b border-line bg-canvas">
             {columns.map((c, i) => (
-              <th key={i} className="whitespace-nowrap border-b border-line px-3 py-2 text-left font-medium text-ink-700">
+              <th
+                key={i}
+                className="whitespace-nowrap px-3 py-2 text-left font-medium text-ink-700"
+              >
                 {c}
               </th>
             ))}
@@ -155,16 +177,20 @@ function ResultsTable({ columns, rows }: { columns: string[]; rows: string[][] }
         <tbody>
           {rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length} className="py-8 text-center text-ink-400">
+              <td colSpan={columns.length} className="py-10 text-center text-sm text-ink-500">
                 No rows returned.
               </td>
             </tr>
           ) : (
             rows.map((row, ri) => (
-              <tr key={ri} className="border-b border-line/50 hover:bg-surface-raised/50">
+              <tr key={ri} className="border-b border-line/60 hover:bg-canvas/50">
                 {row.map((cell, ci) => (
-                  <td key={ci} className="whitespace-nowrap px-3 py-1.5 font-mono text-ink-800">
-                    {cell === "" ? <span className="text-ink-300">NULL</span> : cell}
+                  <td key={ci} className="whitespace-nowrap px-3 py-1.5 font-mono text-ink-900">
+                    {cell === "" ? (
+                      <span className="text-ink-300 italic">NULL</span>
+                    ) : (
+                      cell
+                    )}
                   </td>
                 ))}
               </tr>
@@ -176,9 +202,9 @@ function ResultsTable({ columns, rows }: { columns: string[]; rows: string[][] }
   );
 }
 
-// ---- history panel ----
+// ---- history ----
 
-function HistoryPanel({
+function HistoryTable({
   onSelect,
 }: {
   onSelect: (sql: string, db?: string) => void;
@@ -186,59 +212,92 @@ function HistoryPanel({
   const q = useQuery({
     queryKey: ["athena", "history"],
     queryFn: athenaApi.listQueries,
-    refetchInterval: 5000,
+    refetchInterval: 6000,
   });
 
   const sorted = [...(q.data?.executions ?? [])].sort(
     (a, b) =>
-      (b.submittedAt ? new Date(b.submittedAt).getTime() : 0) -
-      (a.submittedAt ? new Date(a.submittedAt).getTime() : 0),
+      new Date(b.submittedAt ?? 0).getTime() -
+      new Date(a.submittedAt ?? 0).getTime(),
   );
 
+  const columns: Column<QueryExecution>[] = [
+    {
+      key: "state",
+      header: "Status",
+      render: (e) => <StateBadge state={e.state} />,
+    },
+    {
+      key: "sql",
+      header: "Query",
+      render: (e) => (
+        <button
+          className="link text-left font-mono text-xs"
+          onClick={() => onSelect(e.sql ?? "", e.database)}
+        >
+          {sqlSnippet(e.sql)}
+        </button>
+      ),
+    },
+    {
+      key: "database",
+      header: "Database",
+      render: (e) => (
+        <span className="font-mono text-xs text-ink-500">{e.database ?? "—"}</span>
+      ),
+    },
+    {
+      key: "duration",
+      header: "Duration",
+      render: (e) => fmtMs(e.executionMs),
+    },
+    {
+      key: "submitted",
+      header: "Submitted",
+      render: (e) => formatDate(e.submittedAt ?? ""),
+    },
+  ];
+
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-line px-3 py-2">
-        <History className="h-4 w-4 text-ink-400" />
-        <span className="text-xs font-medium text-ink-700">Recent queries</span>
+    <div className="card">
+      <div className="flex items-center justify-between border-b border-line px-4 py-3">
+        <div className="flex items-center gap-2">
+          <History className="h-4 w-4 text-ink-500" />
+          <span className="font-medium">Recent queries</span>
+        </div>
+        <button
+          className="btn-default py-1 text-xs"
+          onClick={() => q.refetch()}
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${q.isFetching ? "animate-spin" : ""}`} />
+        </button>
       </div>
-      <div className="flex-1 overflow-y-auto">
-        {q.isLoading ? (
-          <div className="p-4"><LoadingBlock /></div>
-        ) : sorted.length === 0 ? (
-          <EmptyState icon={History} title="No queries yet" description="Run a query to see history." />
-        ) : (
-          sorted.map((ex) => (
-            <button
-              key={ex.id}
-              onClick={() => onSelect(ex.sql ?? "", ex.database)}
-              className="w-full border-b border-line/50 px-3 py-2 text-left hover:bg-surface-raised"
-            >
-              <div className="mb-1 flex items-center gap-2">
-                <StateIcon state={ex.state} />
-                <StateBadge state={ex.state} />
-                {ex.database && (
-                  <span className="font-mono text-xs text-ink-400">{ex.database}</span>
-                )}
-                <span className="ml-auto text-xs text-ink-400">{fmtMs(ex.executionMs)}</span>
-              </div>
-              <p className="truncate font-mono text-xs text-ink-600">{sqlPreview(ex.sql)}</p>
-              <p className="mt-0.5 text-xs text-ink-400">
-                {ex.submittedAt ? formatDate(new Date(ex.submittedAt).toISOString()) : "—"}
-              </p>
-            </button>
-          ))
-        )}
-      </div>
+      {q.isLoading ? (
+        <LoadingBlock />
+      ) : (
+        <DataTable
+          columns={columns}
+          rows={sorted}
+          rowKey={(e) => e.id}
+          empty={
+            <EmptyState
+              icon={History}
+              title="No queries yet"
+              description="Run a query above to see history here."
+            />
+          }
+        />
+      )}
     </div>
   );
 }
 
 // ---- main page ----
 
-const SAMPLE_QUERIES = [
-  { label: "List S3 buckets", sql: "SHOW DATABASES" },
+const SAMPLES = [
+  { label: "Show databases", sql: "SHOW DATABASES" },
   { label: "Show tables", sql: "SHOW TABLES" },
-  { label: "Select from users", sql: 'SELECT * FROM "mimir_sample_db"."users" LIMIT 10' },
+  { label: "Query users", sql: 'SELECT * FROM "mimir_sample_db"."users" LIMIT 10' },
 ];
 
 export function AthenaPage() {
@@ -248,29 +307,12 @@ export function AthenaPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [result, setResult] = useState<QueryExecution | null>(null);
   const [polling, setPolling] = useState(false);
+  const [running, setRunning] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const dbQ = useQuery({
     queryKey: ["athena", "databases"],
     queryFn: athenaApi.databases,
-  });
-
-  const startMutation = useMutation({
-    mutationFn: () => athenaApi.startQuery(sql, database),
-    onSuccess: ({ queryExecutionId }) => {
-      setActiveId(queryExecutionId);
-      setResult({ id: queryExecutionId, sql, state: "RUNNING", database });
-      setPolling(true);
-    },
-    onError: (e: Error) => notify("error", e.message),
-  });
-
-  const stopMutation = useMutation({
-    mutationFn: () => athenaApi.stopQuery(activeId!),
-    onSuccess: () => {
-      setPolling(false);
-      setResult((r) => r ? { ...r, state: "CANCELLED" } : r);
-    },
   });
 
   const poll = useCallback(async (id: string) => {
@@ -279,199 +321,230 @@ export function AthenaPage() {
       setResult(res);
       if (res.state !== "RUNNING" && res.state !== "QUEUED") {
         setPolling(false);
+        setRunning(false);
       }
     } catch {
       setPolling(false);
+      setRunning(false);
     }
   }, []);
 
   useEffect(() => {
     if (polling && activeId) {
       pollRef.current = setInterval(() => poll(activeId), 1500);
-      return () => {
-        if (pollRef.current) clearInterval(pollRef.current);
-      };
+      return () => { if (pollRef.current) clearInterval(pollRef.current); };
     }
   }, [polling, activeId, poll]);
 
-  const running = polling || startMutation.isPending;
+  async function runQuery() {
+    if (!sql.trim() || running) return;
+    setRunning(true);
+    setResult(null);
+    try {
+      const { queryExecutionId } = await athenaApi.startQuery(sql, database);
+      setActiveId(queryExecutionId);
+      setResult({ id: queryExecutionId, sql, state: "RUNNING", database });
+      setPolling(true);
+    } catch (e) {
+      notify("error", (e as Error).message);
+      setRunning(false);
+    }
+  }
+
+  async function cancelQuery() {
+    if (!activeId) return;
+    try {
+      await athenaApi.stopQuery(activeId);
+      setPolling(false);
+      setRunning(false);
+      setResult((r) => r ? { ...r, state: "CANCELLED" } : r);
+    } catch {
+      //
+    }
+  }
+
+  const databases = dbQ.data?.databases ?? [];
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
+    <div>
       <PageHeader
         title="Amazon Athena"
-        subtitle="Query S3 data with standard SQL — powered by the Glue Data Catalog"
+        subtitle="Interactive query editor — run SQL against Glue catalog tables"
         crumbs={[{ label: "Console Home", to: "/" }, { label: "Athena" }]}
       />
 
-      <div className="flex min-h-0 flex-1 gap-0">
-        {/* ---- left: database / table tree ---- */}
-        <div className="flex w-56 flex-none flex-col border-r border-line bg-surface-raised">
-          <div className="flex items-center gap-2 border-b border-line px-3 py-2">
-            <HardDrive className="h-4 w-4 text-ink-400" />
-            <span className="text-xs font-medium text-ink-700">Data catalog</span>
+      <div className="grid grid-cols-[220px_1fr] gap-4">
+        {/* ---- left: data catalog ---- */}
+        <div className="card overflow-hidden">
+          <div className="flex items-center gap-2 border-b border-line px-3 py-2.5">
+            <HardDrive className="h-4 w-4 text-ink-500" />
+            <span className="text-sm font-medium text-ink-700">Data catalog</span>
           </div>
-          <div className="flex-1 overflow-y-auto py-1">
+          <div className="p-1">
             {dbQ.isLoading ? (
-              <div className="p-3"><LoadingBlock /></div>
+              <LoadingBlock />
             ) : dbQ.error ? (
               <ErrorState error={dbQ.error} onRetry={dbQ.refetch} />
-            ) : (dbQ.data?.databases ?? []).length === 0 ? (
-              <EmptyState icon={Database} title="No databases" description="Create a Glue database first." />
+            ) : databases.length === 0 ? (
+              <EmptyState
+                icon={Database}
+                title="No databases"
+                description="Create one in Glue first."
+              />
             ) : (
-              (dbQ.data?.databases ?? []).map((db) => (
-                <DatabaseTree
+              databases.map((db) => (
+                <DbRow
                   key={db.name}
-                  db={db.name}
-                  selected={database === db.name}
-                  onSelect={() => setDatabase((cur) => cur === db.name ? undefined : db.name)}
+                  name={db.name}
+                  active={database === db.name}
+                  onActivate={() =>
+                    setDatabase((c) => (c === db.name ? undefined : db.name))
+                  }
                 />
               ))
             )}
           </div>
         </div>
 
-        {/* ---- center: editor + results ---- */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          {/* toolbar */}
-          <div className="flex items-center gap-2 border-b border-line px-3 py-2">
-            {database && (
-              <div className="flex items-center gap-1 rounded bg-mimir/10 px-2 py-0.5 text-xs font-medium text-mimir">
-                <Database className="h-3 w-3" />
-                {database}
-                <button onClick={() => setDatabase(undefined)} className="ml-1 text-ink-400 hover:text-danger">×</button>
-              </div>
-            )}
-            <div className="flex-1" />
-            <div className="flex gap-1">
-              {SAMPLE_QUERIES.map((q) => (
-                <button
-                  key={q.label}
-                  onClick={() => setSql(q.sql)}
-                  className="rounded border border-line px-2 py-0.5 text-xs text-ink-500 hover:border-mimir hover:text-mimir"
+        {/* ---- right: editor + results ---- */}
+        <div className="space-y-4">
+          {/* query editor card */}
+          <div className="card overflow-hidden">
+            {/* toolbar */}
+            <div className="flex items-center gap-3 border-b border-line bg-canvas px-3 py-2">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-medium text-ink-700 whitespace-nowrap">
+                  Database context
+                </label>
+                <select
+                  className="input w-48 py-1 text-xs"
+                  value={database ?? ""}
+                  onChange={(e) => setDatabase(e.target.value || undefined)}
                 >
-                  {q.label}
+                  <option value="">— none —</option>
+                  {databases.map((d) => (
+                    <option key={d.name} value={d.name}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex-1" />
+              <span className="text-xs text-ink-300">Sample queries:</span>
+              {SAMPLES.map((s) => (
+                <button
+                  key={s.label}
+                  onClick={() => setSql(s.sql)}
+                  className="rounded border border-line bg-white px-2 py-0.5 text-xs text-ink-500 hover:border-mimir hover:text-mimir"
+                >
+                  {s.label}
                 </button>
               ))}
             </div>
-          </div>
 
-          {/* sql editor */}
-          <div className="relative border-b border-line">
+            {/* sql textarea — dark like notebook */}
             <textarea
               value={sql}
               onChange={(e) => setSql(e.target.value)}
+              rows={8}
               spellCheck={false}
-              rows={7}
-              className="w-full resize-none bg-transparent p-3 font-mono text-sm text-ink-900 outline-none placeholder:text-ink-300"
+              className="w-full resize-y bg-squid-900 p-4 font-mono text-sm leading-relaxed text-green-100 outline-none placeholder:text-ink-500"
               placeholder="SELECT * FROM my_table LIMIT 10"
               onKeyDown={(e) => {
                 if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                   e.preventDefault();
-                  if (!running && sql.trim()) startMutation.mutate();
+                  runQuery();
                 }
               }}
             />
-            <div className="absolute bottom-2 right-2 flex items-center gap-2">
-              <span className="text-xs text-ink-400">⌘↵ to run</span>
-              {running ? (
+
+            {/* run bar */}
+            <div className="flex items-center justify-between border-t border-line px-3 py-2">
+              <span className="text-xs text-ink-500">
+                ⌘ Enter to run · results appear below
+              </span>
+              <div className="flex gap-2">
+                {running && (
+                  <button className="btn-danger" onClick={cancelQuery}>
+                    <Square className="h-4 w-4" /> Cancel
+                  </button>
+                )}
                 <button
-                  onClick={() => stopMutation.mutate()}
-                  className="flex items-center gap-1.5 rounded bg-danger px-3 py-1.5 text-xs font-medium text-white hover:bg-danger/80"
+                  className="btn-primary"
+                  disabled={!sql.trim() || running}
+                  onClick={runQuery}
                 >
-                  <Square className="h-3.5 w-3.5" /> Cancel
+                  {running ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Running…</>
+                  ) : (
+                    <><Play className="h-4 w-4" /> Run query</>
+                  )}
                 </button>
-              ) : (
-                <button
-                  onClick={() => startMutation.mutate()}
-                  disabled={!sql.trim()}
-                  className="flex items-center gap-1.5 rounded bg-mimir px-3 py-1.5 text-xs font-medium text-white hover:bg-mimir/80 disabled:opacity-40"
-                >
-                  <Play className="h-3.5 w-3.5" /> Run query
-                </button>
-              )}
+              </div>
             </div>
           </div>
 
-          {/* results area */}
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            {!result ? (
-              <div className="flex h-full items-center justify-center">
-                <EmptyState
-                  icon={Search}
-                  title="No query run yet"
-                  description="Write SQL above and click Run query — results appear here."
-                />
+          {/* results card */}
+          {result ? (
+            <div className="card overflow-hidden">
+              {/* meta bar */}
+              <div className="flex flex-wrap items-center gap-4 border-b border-line bg-canvas px-4 py-2 text-xs text-ink-500">
+                <StateBadge state={result.state} />
+                {result.executionMs !== undefined && (
+                  <span className="flex items-center gap-1">
+                    <Clock className="h-3.5 w-3.5" /> {fmtMs(result.executionMs)}
+                  </span>
+                )}
+                {result.scannedBytes !== undefined && (
+                  <span className="flex items-center gap-1">
+                    <HardDrive className="h-3.5 w-3.5" /> {fmtBytes(result.scannedBytes)} scanned
+                  </span>
+                )}
+                {result.results && (
+                  <span>{result.results.rows.length} row{result.results.rows.length !== 1 ? "s" : ""}</span>
+                )}
+                <span className="ml-auto font-mono text-ink-300">{result.id}</span>
               </div>
-            ) : (
-              <>
-                {/* result meta bar */}
-                <div className="flex items-center gap-4 border-b border-line bg-surface-raised px-3 py-1.5 text-xs text-ink-500">
-                  <div className="flex items-center gap-1.5">
-                    <StateIcon state={result.state} />
-                    <StateBadge state={result.state} />
-                  </div>
-                  {result.executionMs !== undefined && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" /> {fmtMs(result.executionMs)}
-                    </span>
-                  )}
-                  {result.scannedBytes !== undefined && (
-                    <span className="flex items-center gap-1">
-                      <HardDrive className="h-3 w-3" /> {fmtBytes(result.scannedBytes)} scanned
-                    </span>
-                  )}
-                  {result.results && (
-                    <span className="text-ink-400">
-                      {result.results.rows.length} row{result.results.rows.length !== 1 ? "s" : ""}
-                    </span>
-                  )}
-                  {result.id && (
-                    <span className="ml-auto font-mono text-ink-300">{result.id}</span>
-                  )}
+
+              {result.state === "RUNNING" || result.state === "QUEUED" ? (
+                <div className="flex items-center justify-center gap-2 py-12 text-sm text-ink-500">
+                  <Loader2 className="h-5 w-5 animate-spin text-mimir" />
+                  Executing query…
                 </div>
+              ) : result.state === "FAILED" ? (
+                <div className="m-4 rounded-lg border border-danger/30 bg-danger/5 p-4 font-mono text-sm text-danger">
+                  {result.error ?? "Query failed."}
+                </div>
+              ) : result.state === "CANCELLED" ? (
+                <div className="flex items-center justify-center gap-2 py-10 text-sm text-ink-500">
+                  Query was cancelled.
+                </div>
+              ) : result.state === "SUCCEEDED" && result.results ? (
+                <QueryResultsTable
+                  columns={result.results.columns}
+                  rows={result.results.rows}
+                />
+              ) : result.state === "SUCCEEDED" ? (
+                <div className="flex items-center justify-center gap-2 py-10 text-sm text-ink-500">
+                  <CheckCircle2 className="h-5 w-5 text-ok" />
+                  Query succeeded with no output rows.
+                </div>
+              ) : null}
+            </div>
+          ) : (
+            <div className="card">
+              <EmptyState
+                icon={Search}
+                title="No query run yet"
+                description="Write SQL in the editor above and click Run query."
+              />
+            </div>
+          )}
 
-                {/* query still running */}
-                {(result.state === "RUNNING" || result.state === "QUEUED") && (
-                  <div className="flex items-center justify-center gap-2 py-12 text-sm text-ink-500">
-                    <Loader2 className="h-5 w-5 animate-spin text-mimir" />
-                    Query is running…
-                  </div>
-                )}
-
-                {/* error */}
-                {result.state === "FAILED" && result.error && (
-                  <div className="m-4 rounded border border-danger/30 bg-danger/5 p-4 font-mono text-sm text-danger">
-                    {result.error}
-                  </div>
-                )}
-
-                {/* results table */}
-                {result.state === "SUCCEEDED" && result.results && (
-                  <ResultsTable columns={result.results.columns} rows={result.results.rows} />
-                )}
-
-                {result.state === "SUCCEEDED" && !result.results && (
-                  <div className="flex items-center justify-center gap-2 py-12 text-sm text-ink-400">
-                    <CheckCircle2 className="h-5 w-5 text-green-500" /> Query succeeded with no results.
-                  </div>
-                )}
-
-                {result.state === "CANCELLED" && (
-                  <div className="flex items-center justify-center gap-2 py-12 text-sm text-ink-400">
-                    Query was cancelled.
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </div>
-
-        {/* ---- right: history ---- */}
-        <div className="w-64 flex-none border-l border-line">
-          <HistoryPanel
-            onSelect={(sql, db) => {
-              setSql(sql);
+          {/* history */}
+          <HistoryTable
+            onSelect={(s, db) => {
+              setSql(s);
               if (db) setDatabase(db);
             }}
           />
