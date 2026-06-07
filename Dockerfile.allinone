@@ -86,8 +86,8 @@ COPY --from=server-build /app/dist ./dist
 WORKDIR /app/duck
 COPY mimir-duck/package.json ./
 COPY mimir-duck/server.js ./
-RUN apk add --no-cache --virtual .duck-build npm python3 build-base linux-headers nodejs-dev cmake \
- && npm_config_build_from_source=true npm install --omit=dev && npm cache clean --force \
+RUN apk add --no-cache --virtual .duck-build npm python3 build-base linux-headers nodejs-dev \
+ && npm install --omit=dev && npm cache clean --force \
  && apk del .duck-build
 
 # backend
