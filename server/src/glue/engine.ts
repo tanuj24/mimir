@@ -278,7 +278,13 @@ interface LiveSession extends SessionMeta {
 const SESSION_IDLE_MS = Number(process.env.GLUE_SESSION_IDLE_MS ?? 120 * 60_000);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const STATE_FILE = join(__dirname, "..", "..", ".glue-state.json");
+
+// When running in the container, MIMIR_STORAGE_PERSISTENT_PATH points to the
+// mounted data volume (/app/data) — one mount covers all persistent state.
+// Locally (npm run dev) it falls back to the project root.
+const DATA_DIR =
+  process.env.MIMIR_STORAGE_PERSISTENT_PATH ?? join(__dirname, "..", "..");
+const STATE_FILE = join(DATA_DIR, "glue-state.json");
 
 const jobs = new Map<string, GlueJob>();
 const runs = new Map<string, JobRun>(); // runId -> run

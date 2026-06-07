@@ -58,6 +58,7 @@ ENV NODE_ENV=production \
     GLUE_WORK_DIR=/tmp/mimir-glue \
     GLUE_AWS_ENDPOINT=http://host.docker.internal:4566 \
     MIMIR_STORAGE_PERSISTENT_PATH=/app/data \
+    MIMIR_STORAGE_MODE=persistent \
     MIMIR_BASE_URL=http://host.docker.internal:4566
 
 # Runtime needs only the node BINARY (+ nginx, bash, docker CLI). npm and the

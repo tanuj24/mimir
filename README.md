@@ -125,6 +125,7 @@ docker run -d --name mimir \
   -p 8080:80 -p 4566:4566 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /tmp/mimir-glue:/tmp/mimir-glue \
+  -v mimir-data:/app/data \
   tanujsoni027/mimir-aws:latest
 ```
 
@@ -139,7 +140,7 @@ Defaults:
 - Secret key: `mimir`
 - Region: `us-east-1`
 
-The Docker socket lets the container-backed services (Lambda, EC2, Glue) spin up sibling containers; the `/tmp/mimir-glue` mount is only needed for Glue.
+The Docker socket lets the container-backed services (Lambda, EC2, Glue) spin up sibling containers; `/tmp/mimir-glue` is only needed for Glue; `mimir-data` is a named volume that persists your S3 buckets, DynamoDB tables, Lambda functions, Glue jobs, and all other state across container restarts and upgrades.
 
 Point your AWS CLI or SDKs at the local backend:
 
