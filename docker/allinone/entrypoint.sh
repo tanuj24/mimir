@@ -14,7 +14,11 @@ term() {
 }
 trap term TERM INT
 
-# 1) Backend (local AWS cloud) on :4566
+# 1) DuckDB sidecar — Athena / S3 Select SQL execution on :3000
+( cd /app/duck && exec node server.js ) &
+pids+=($!)
+
+# 2) Backend (local AWS cloud) on :4566
 echo "[mimir] starting backend…"
 ( cd /app/backend && exec java --enable-native-access=ALL-UNNAMED -jar quarkus-app/quarkus-run.jar ) &
 pids+=($!)
@@ -29,12 +33,12 @@ for _ in $(seq 1 90); do
   sleep 1
 done
 
-# 2) Proxy server + Glue engine on :4000
+# 3) Proxy server + Glue engine on :4000
 echo "[mimir] starting server…"
 ( cd /app/server && exec node dist/index.js ) &
 pids+=($!)
 
-# 3) Console (nginx) on :80
+# 4) Console (nginx) on :80
 echo "[mimir] starting web console…"
 nginx -g 'daemon off;' &
 pids+=($!)

@@ -59,7 +59,8 @@ ENV NODE_ENV=production \
     GLUE_AWS_ENDPOINT=http://host.docker.internal:4566 \
     MIMIR_STORAGE_PERSISTENT_PATH=/app/data \
     MIMIR_STORAGE_MODE=persistent \
-    MIMIR_BASE_URL=http://host.docker.internal:4566
+    MIMIR_BASE_URL=http://host.docker.internal:4566 \
+    MIMIR_SERVICES_DUCK_URL=http://127.0.0.1:3000
 
 # Runtime needs only the node BINARY (+ nginx, bash, docker CLI). npm and the
 # build toolchain are added ONLY to compile native deps, then removed — npm
@@ -79,6 +80,16 @@ RUN apk add --no-cache --virtual .build npm python3 build-base linux-headers nod
  && apk del .build
 COPY --from=server-build /app/dist ./dist
 
+# mimir-duck: DuckDB HTTP sidecar for Athena + S3 Select query execution.
+# duckdb is a native addon — must be compiled against THIS image's node ABI.
+# cmake is required by duckdb's CMake build system.
+WORKDIR /app/duck
+COPY mimir-duck/package.json ./
+COPY mimir-duck/server.js ./
+RUN apk add --no-cache --virtual .duck-build npm python3 build-base linux-headers nodejs-dev cmake \
+ && npm install --omit=dev && npm cache clean --force \
+ && apk del .duck-build
+
 # backend
 COPY --from=backend-build /build/target/quarkus-app /app/backend/quarkus-app
 
@@ -87,7 +98,7 @@ COPY --from=web-build /app/dist /usr/share/nginx/html
 COPY docker/allinone/nginx.conf /etc/nginx/http.d/default.conf
 
 COPY docker/allinone/entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh && mkdir -p /app/data /tmp/mimir-glue /run/nginx
+RUN chmod +x /entrypoint.sh && mkdir -p /app/data /tmp/mimir-glue /run/nginx /root/.duckdb/extensions
 
 # 80 = console, 4566 = AWS edge (so AWS CLI/SDKs can hit it), 4000 = proxy
 EXPOSE 80 4566 4000

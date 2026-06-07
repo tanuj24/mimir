@@ -1,0 +1,9 @@
+{
+  "name": "mimir-duck",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "dependencies": {
+    "duckdb": "^1.1.0"
+  }
+}
