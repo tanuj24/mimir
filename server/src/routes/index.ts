@@ -15,6 +15,7 @@ import { ecrRouter } from "./ecr.js";
 import { eksRouter } from "./eks.js";
 import { glueRouter } from "./glue.js";
 import { kafkaRouter } from "./kafka.js";
+import { athenaRouter } from "./athena.js";
 import { systemRouter } from "./system.js";
 
 /**
@@ -39,4 +40,5 @@ apiRouter.use("/ecr", ecrRouter);
 apiRouter.use("/eks", eksRouter);
 apiRouter.use("/glue", glueRouter);
 apiRouter.use("/kafka", kafkaRouter);
+apiRouter.use("/athena", athenaRouter);
 apiRouter.use("/system", systemRouter);

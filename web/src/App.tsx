@@ -21,6 +21,7 @@ import { EcrPage } from "@/pages/ecr/EcrPage";
 import { EksPage } from "@/pages/eks/EksPage";
 import { GluePage } from "@/pages/glue/GluePage";
 import { KafkaPage } from "@/pages/kafka/KafkaPage";
+import { AthenaPage } from "@/pages/athena/AthenaPage";
 
 const router = createBrowserRouter([
   {
@@ -46,6 +47,7 @@ const router = createBrowserRouter([
       { path: "eks", element: <EksPage /> },
       { path: "glue", element: <GluePage /> },
       { path: "kafka", element: <KafkaPage /> },
+      { path: "athena", element: <AthenaPage /> },
       { path: "coming-soon/:id", element: <ComingSoon /> },
       { path: "*", element: <NotFound /> },
     ],

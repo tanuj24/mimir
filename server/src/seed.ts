@@ -110,6 +110,7 @@ async function seedS3() {
   await cl.send(new CreateBucketCommand({ Bucket: "mimir-sample-data" })).catch(ignore(["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]));
   await cl.send(new CreateBucketCommand({ Bucket: "mimir-uploads" })).catch(ignore(["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]));
   await cl.send(new CreateBucketCommand({ Bucket: "mimir-logs" })).catch(ignore(["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]));
+  await cl.send(new CreateBucketCommand({ Bucket: "mimir-athena-results" })).catch(ignore(["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]));
 
   const put = (key: string, body: string, type = "application/json") =>
     cl.send(new PutObjectCommand({ Bucket: "mimir-sample-data", Key: key, Body: body, ContentType: type }));

@@ -310,7 +310,7 @@ export const SERVICES: ServiceDef[] = [
     icon: Search,
     color: "#8c4fff",
     path: "/athena",
-    available: false,
+    available: true,
   },
   {
     id: "opensearch",
