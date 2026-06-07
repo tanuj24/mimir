@@ -97,6 +97,16 @@ These aren't mock jobs. They actually execute. They just run on Docker container
 
 ---
 
+## Examples
+
+These walkthroughs show real local workflows you can run against Mimir:
+
+- [Run a Glue Spark job with Parquet on S3](docs/examples/glue-spark-parquet-s3.md): read Parquet from local S3, write transformed Parquet back to S3, and register a Glue Catalog table.
+- [Use the EC2 browser terminal](docs/examples/ec2-browser-terminal.md): launch a local EC2 instance and connect to its shell from the console.
+- [Run Lambda locally](docs/examples/lambda-local-runtime.md): create a function, invoke it, and inspect logs without an AWS account.
+
+---
+
 ## Get started in 30 seconds
 
 The entire tool — backend, server, and console — ships as a **single multi-arch
