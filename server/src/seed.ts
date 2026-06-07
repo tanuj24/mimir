@@ -580,13 +580,49 @@ async function seedEcr() {
 // ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
+
+async function waitForBackend(timeoutMs = 120_000): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    try {
+      const r = await fetch(`${config.backendEndpoint}/_mimir/health`);
+      if (r.ok) return true;
+    } catch {
+      // not ready yet
+    }
+    await new Promise((res) => setTimeout(res, 2_000));
+  }
+  return false;
+}
+
+async function hasBeenSeeded(): Promise<boolean> {
+  if (!existsSync(SEED_FLAG)) return false;
+  // Verify the sentinel resource actually exists — the flag might have been written
+  // before the backend was ready, leaving an empty environment.
+  try {
+    const cl = makeClient(S3Client, { forcePathStyle: true });
+    await cl.send(new HeadBucketCommand({ Bucket: "mimir-sample-data" }));
+    return true;
+  } catch {
+    console.log("[mimir] seed flag exists but sample bucket missing — re-seeding");
+    return false;
+  }
+}
+
 export async function seedSampleData(): Promise<void> {
-  if (existsSync(SEED_FLAG)) return;
+  if (await hasBeenSeeded()) return;
+
+  console.log("[mimir] waiting for backend before seeding sample data…");
+  const ready = await waitForBackend();
+  if (!ready) {
+    console.warn("[mimir] backend did not become ready in time — skipping seed");
+    return;
+  }
 
   console.log("[mimir] seeding sample data for first run…");
   const t = Date.now();
 
-  await Promise.allSettled([
+  const results = await Promise.allSettled([
     seedS3(),
     seedDynamoDB(),
     seedLambda(),
@@ -602,6 +638,11 @@ export async function seedSampleData(): Promise<void> {
     seedEcr(),
   ]);
 
+  const failed = results.filter((r) => r.status === "rejected").length;
+  if (failed > 0) {
+    console.warn(`[mimir] ${failed} seeders failed (check logs above)`);
+  }
+
   writeFileSync(SEED_FLAG, new Date().toISOString() + "\n");
-  console.log(`[mimir] sample data ready (${Date.now() - t}ms)`);
+  console.log(`[mimir] sample data ready in ${Date.now() - t}ms (${results.length - failed}/${results.length} services)`);
 }
