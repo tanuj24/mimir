@@ -4,14 +4,14 @@ export default {
   theme: {
     extend: {
       colors: {
-        // AWS-console-inspired neutrals + Floci orange accent
+        // AWS-console-inspired neutrals + Mimir orange accent
         squid: {
           900: "#0f1b2d", // deepest nav
           800: "#16243b",
           700: "#1b2a41",
           600: "#232f3e", // classic AWS top bar
         },
-        floci: {
+        mimir: {
           DEFAULT: "#ec7211", // AWS-orange-ish accent
           dark: "#d35f0a",
           light: "#ff9900",

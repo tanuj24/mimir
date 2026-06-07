@@ -15,13 +15,13 @@ export function ComingSoon() {
         crumbs={[{ label: "Console Home", to: "/" }, { label: svc?.short ?? "Service" }]}
       />
       <div className="card flex flex-col items-center justify-center gap-3 py-20 text-center">
-        <div className="rounded-full bg-floci/10 p-4 text-floci">
+        <div className="rounded-full bg-mimir/10 p-4 text-mimir">
           {svc?.icon ? <svc.icon className="h-8 w-8" /> : <Construction className="h-8 w-8" />}
         </div>
         <div>
           <p className="text-lg font-medium">UI coming soon</p>
           <p className="mt-1 max-w-md text-sm text-ink-500">
-            Floci already supports {svc?.name ?? "this service"} on the backend. The console screen
+            The Mimir backend already supports {svc?.name ?? "this service"} on the backend. The console screen
             for it is on the roadmap.
           </p>
         </div>

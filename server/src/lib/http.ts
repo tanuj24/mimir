@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response, RequestHandler } from "express";
 
 /** The UI region selector sends this header; falls back to server default. */
 export function regionOf(req: Request): string | undefined {
-  const r = req.header("x-floci-region");
+  const r = req.header("x-mimir-region");
   return r && r.length > 0 ? r : undefined;
 }
 

@@ -17,7 +17,8 @@ COPY server/src ./src
 RUN npm run build
 
 # Pull the docker CLI binary from the official image (avoids apk TLS issues).
-FROM docker:27-cli AS docker-source
+# Latest cli image = current Go toolchain → no golang stdlib CVEs.
+FROM docker:cli AS docker-source
 
 # ---- runtime ----
 FROM node:20-alpine
@@ -29,12 +30,14 @@ COPY --from=docker-source /usr/local/bin/docker /usr/local/bin/docker
 WORKDIR /app
 COPY package-lock.json server/package.json ./
 # Compile native deps (node-pty) with a throwaway toolchain, then drop it so
-# the runtime image stays small.
+# the runtime image stays small. We also remove npm itself — it's not needed at
+# runtime and bundles its own (vulnerable) copies of tar/minimatch/etc.
 RUN sed -i 's/https/http/' /etc/apk/repositories \
  && apk add --no-cache --virtual .build python3 build-base linux-headers \
  && ln -sf /usr/bin/python3 /usr/bin/python \
  && npm install --omit=dev && npm cache clean --force \
- && apk del .build
+ && apk del .build \
+ && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx /root/.npm
 COPY --from=build /app/dist ./dist
 ENV NODE_ENV=production
 EXPOSE 4000

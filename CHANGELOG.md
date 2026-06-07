@@ -3,6 +3,48 @@
 All notable changes to Mimir are documented here. This project adheres to
 [Semantic Versioning](https://semver.org/).
 
+> The **`v2`** branch is where Mimir 2.x is developed. The **`main`** branch
+> continues the 1.x line.
+
+## [2.0.0] - Unreleased (v2 branch)
+
+Mimir 2.0 ditches the external Floci dependency and ships its **own local AWS
+cloud backend** in-repo, so the entire tool — console, proxy, and emulated AWS —
+builds and runs as a single bundle.
+
+### Added
+- **`mimir-backend/`** — the bundled local AWS cloud (Java / Quarkus emulator).
+  `docker compose up` builds and runs it directly; no external image required.
+- **All-in-one image** — the whole tool (backend + server + console) ships as a
+  single multi-arch image (amd64 + arm64) at `tanujsoni027/mimir-aws`. Pull and
+  run everything in one container — no clone, no build:
+  `docker run -d -p 8080:80 -p 4566:4566 -v /var/run/docker.sock:/var/run/docker.sock tanujsoni027/mimir-aws`.
+- **Prebuilt component images** for the Compose path, published at
+  `tanujsoni027/mimir-aws` (tags `:backend`, `:server`, `:web`). `docker compose
+  up -d` pulls these; use `--build` to build from source instead.
+
+### Security
+- Hardened the published images (Docker Scout): bumped the embedded docker CLI
+  to a current Go toolchain (clears the golang stdlib CVEs), removed `npm` from
+  the runtime images (it bundled vulnerable `tar`/`minimatch`/`picomatch`), and
+  pinned Netty to `4.1.133.Final`. This takes the all-in-one image from
+  2 critical / 29 high to **0 critical / 3 high** (the remaining highs are
+  transitive Quarkus deps that need a backend platform upgrade).
+
+### Changed
+- `docker compose` now builds and starts `mimir-backend` instead of pulling the
+  `floci/floci` image. The backend still serves the AWS edge on `localhost:4566`.
+- The proxy server points the AWS SDKs and the Glue engine at the Mimir backend.
+  Endpoint env vars are now `BACKEND_ENDPOINT` / `PUBLIC_BACKEND_ENDPOINT`
+  (legacy `FLOCI_ENDPOINT` is still honored). The health check uses the
+  backend's `/_mimir/health`, and EC2 instance containers are matched as
+  `mimir-ec2-<id>`.
+- Console branding and copy no longer reference Floci; the brand accent color
+  token is `mimir`.
+
+### Removed
+- The external Floci service from `docker-compose.yml` and all Floci references.
+
 ## [1.1] - 2026-06-06
 
 Mimir v1.1 makes the compute services run real workloads. AWS Glue jobs now

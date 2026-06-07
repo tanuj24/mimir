@@ -61,7 +61,7 @@ function CreateBucketModal({ open, onClose }: { open: boolean; onClose: () => vo
         onKeyDown={(e) => e.key === "Enter" && name.trim() && m.mutate()}
       />
       <p className="mt-2 text-xs text-ink-500">
-        Bucket names must be globally unique within Floci and use lowercase letters, numbers and
+        Bucket names must be globally unique within the Mimir backend and use lowercase letters, numbers and
         hyphens.
       </p>
     </Modal>

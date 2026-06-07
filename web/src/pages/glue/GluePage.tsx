@@ -29,7 +29,7 @@ export function GluePage() {
             key={t.id}
             onClick={() => setTab(t.id)}
             className={`-mb-px flex items-center gap-1.5 border-b-2 px-4 py-2 text-sm font-medium ${
-              tab === t.id ? "border-floci text-floci" : "border-transparent text-ink-500 hover:text-ink-900"
+              tab === t.id ? "border-mimir text-mimir" : "border-transparent text-ink-500 hover:text-ink-900"
             }`}
           >
             <t.icon className="h-4 w-4" />

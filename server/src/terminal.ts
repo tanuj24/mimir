@@ -7,8 +7,8 @@ import { spawn as ptySpawn } from "node-pty";
 /**
  * Browser terminal for EC2 instances.
  *
- * Floci backs each EC2 instance with a real Docker container named
- * `floci-ec2-<instance-id>`. We bridge a WebSocket to a PTY running
+ * the Mimir backend backs each EC2 instance with a real Docker container named
+ * `mimir-ec2-<instance-id>`. We bridge a WebSocket to a PTY running
  * `docker exec -it <container> <shell>`, so the console gets a genuine
  * interactive shell — Mimir's take on EC2 Instance Connect.
  *
@@ -40,32 +40,26 @@ export function attachTerminal(server: Server): void {
   });
 }
 
-// Startup script run inside the instance. Gives a real bash experience:
-// proper TERM (so readline/arrows/history/tab-completion/Ctrl-L work), a
-// colored prompt, and the usual color aliases. Falls back to sh if bash is
-// somehow missing. The rcfile is written fresh on each connect (cheap).
-const SHELL_INIT = [
-  "cat > /tmp/.mimirrc <<'RC'",
-  "export TERM=xterm-256color",
-  "export PS1='\\[\\e[1;32m\\]\\u@\\h\\[\\e[0m\\]:\\[\\e[1;34m\\]\\w\\[\\e[0m\\]\\$ '",
-  "alias ls='ls --color=auto'",
-  "alias ll='ls -alF --color=auto'",
-  "alias la='ls -A --color=auto'",
-  "alias grep='grep --color=auto'",
-  "RC",
-  "exec bash --rcfile /tmp/.mimirrc -i 2>/dev/null || exec sh -i",
-].join("\n");
+// Colored bash prompt: user@host:cwd$ — all injected via docker exec -e so
+// bash -i starts immediately without a wrapper script (which suppressed the
+// initial prompt in testing).
+const PS1 = "\\[\\e[1;32m\\]\\u@\\h\\[\\e[0m\\]:\\[\\e[1;34m\\]\\w\\[\\e[0m\\]\\$ ";
 
 function startSession(ws: WebSocket, instanceId: string): void {
-  const container = `floci-ec2-${instanceId}`;
+  const container = `mimir-ec2-${instanceId}`;
 
-  // node-pty gives the host side of the TTY; `docker exec -it` allocates the
-  // matching TTY inside the container. `-e TERM` is set before bash starts so
-  // readline picks up a real terminal (the container otherwise defaults to
-  // TERM=dumb, which disables line editing entirely).
+  // Pass env vars directly into docker exec so bash -i starts cleanly with a
+  // visible prompt. The container's own .bashrc is still sourced (color aliases
+  // etc.), and our PS1 overrides whatever PS1 it sets.
   const term = ptySpawn(
     "docker",
-    ["exec", "-it", "-e", "TERM=xterm-256color", container, "sh", "-c", SHELL_INIT],
+    [
+      "exec", "-it",
+      "-e", "TERM=xterm-256color",
+      "-e", `PS1=${PS1}`,
+      container,
+      "bash", "-i",
+    ],
     {
       name: "xterm-256color",
       cols: 80,

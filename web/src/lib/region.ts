@@ -1,4 +1,4 @@
-const KEY = "floci.region";
+const KEY = "mimir.region";
 
 export const REGIONS = [
   { id: "us-east-1", name: "US East (N. Virginia)" },

@@ -68,7 +68,7 @@ function InstancesTab() {
       render: (i) => (
         <div className="flex justify-end gap-1">
           {i.state === "running" && (
-            <button className="rounded p-1.5 text-ink-500 hover:bg-floci/10 hover:text-floci" onClick={() => setTerminalFor(i)} title="Connect (terminal)">
+            <button className="rounded p-1.5 text-ink-500 hover:bg-mimir/10 hover:text-mimir" onClick={() => setTerminalFor(i)} title="Connect (terminal)">
               <SquareTerminal className="h-4 w-4" />
             </button>
           )}
@@ -169,7 +169,7 @@ export function Ec2Page() {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${tab === t.id ? "border-floci text-floci" : "border-transparent text-ink-500 hover:text-ink-900"}`}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${tab === t.id ? "border-mimir text-mimir" : "border-transparent text-ink-500 hover:text-ink-900"}`}
           >
             {t.label}
           </button>

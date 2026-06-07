@@ -2,7 +2,7 @@
   "name": "mimir",
   "version": "0.1.0",
   "private": true,
-  "description": "Mimir — see your cloud, before you ship your cloud. A local AWS-style console powered by Floci (https://floci.io).",
+  "description": "Mimir — see your cloud, before you ship your cloud. A local AWS-style console bundled with its own local AWS cloud backend.",
   "workspaces": [
     "server",
     "web"

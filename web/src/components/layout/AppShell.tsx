@@ -15,12 +15,8 @@ export function AppShell() {
           </div>
           <footer className="mx-auto max-w-[1400px] px-6 pb-6 pt-2 text-xs text-ink-500">
             <span className="font-medium text-ink-700">Mimir</span> · See your cloud, before you
-            ship your cloud · Powered by{" "}
-            <a href="https://floci.io" target="_blank" rel="noreferrer" className="link">
-              Floci
-            </a>
-            . Mimir is an independent project and is not affiliated with or endorsed by Amazon Web
-            Services.
+            ship your cloud · Runs entirely on your machine against a bundled local AWS cloud. Mimir
+            is an independent project and is not affiliated with or endorsed by Amazon Web Services.
           </footer>
         </main>
       </div>

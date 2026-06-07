@@ -318,7 +318,7 @@ export function LambdaPage() {
       render: (f) => (
         <div className="flex justify-end gap-1">
           <button
-            className="rounded p-1.5 text-ink-500 hover:bg-floci/10 hover:text-floci"
+            className="rounded p-1.5 text-ink-500 hover:bg-mimir/10 hover:text-mimir"
             onClick={() => setInvokeFn(f)}
             title="Invoke"
           >
@@ -380,7 +380,7 @@ export function LambdaPage() {
               <EmptyState
                 icon={Zap}
                 title="No functions"
-                description="Create a function with the button above, or deploy one with the AWS CLI/SDK against Floci."
+                description="Create a function with the button above, or deploy one with the AWS CLI/SDK against the Mimir backend."
               />
             }
           />

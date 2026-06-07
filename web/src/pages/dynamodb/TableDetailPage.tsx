@@ -73,7 +73,7 @@ export function TableDetailPage() {
       header: (
         <span>
           {k}
-          {keyAttrs.includes(k) && <span className="ml-1 text-floci">●</span>}
+          {keyAttrs.includes(k) && <span className="ml-1 text-mimir">●</span>}
         </span>
       ),
       render: (row: Record<string, unknown>) => {
@@ -137,7 +137,7 @@ export function TableDetailPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium capitalize ${
-              tab === t ? "border-floci text-floci" : "border-transparent text-ink-500 hover:text-ink-900"
+              tab === t ? "border-mimir text-mimir" : "border-transparent text-ink-500 hover:text-ink-900"
             }`}
           >
             {t}

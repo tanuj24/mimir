@@ -79,7 +79,7 @@ ec2Router.post(
     else if (action === "stop") await c.send(new StopInstancesCommand({ InstanceIds: ids }));
     else {
       await c.send(new TerminateInstancesCommand({ InstanceIds: ids }));
-      // Floci leaves the backing container behind on terminate — remove it.
+      // the Mimir backend leaves the backing container behind on terminate — remove it.
       removeInstanceContainers(ids);
     }
     res.json({ ok: true });
