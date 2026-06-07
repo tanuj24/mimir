@@ -63,7 +63,9 @@ ENV NODE_ENV=production \
 # Runtime needs only the node BINARY (+ nginx, bash, docker CLI). npm and the
 # build toolchain are added ONLY to compile native deps, then removed — npm
 # bundles its own (vulnerable) copies of tar/minimatch/etc., so it must not ship.
-RUN apk add --no-cache nodejs nginx bash ca-certificates
+# `apk upgrade` pulls the latest patched base packages (e.g. libpng).
+RUN apk upgrade --no-cache libpng \
+ && apk add --no-cache nodejs nginx bash ca-certificates
 COPY --from=docker-source /usr/local/bin/docker /usr/local/bin/docker
 
 # server: install production deps here so node-pty (native) is compiled against
