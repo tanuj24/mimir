@@ -8,6 +8,7 @@ import { basename } from "node:path";
 import { S3Client, GetObjectCommand } from "@aws-sdk/client-s3";
 import { makeClient } from "../aws/clientFactory.js";
 import { config } from "../config.js";
+import { GlueJobLogger, publishSessionLog } from "./cwLogs.js";
 
 /**
  * Local AWS-Glue-style execution engine.
@@ -512,17 +513,24 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
     ];
 
     const child = spawn("docker", args);
-    const append = (chunk: Buffer) => {
-      run.logs += chunk.toString();
-    };
-    child.stdout.on("data", append);
-    child.stderr.on("data", append);
+    const cwLogger = new GlueJobLogger(run.jobName, run.id, job.type);
+    child.stdout.on("data", (chunk: Buffer) => {
+      const text = chunk.toString();
+      run.logs += text;
+      cwLogger.appendOutput(text);
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      const text = chunk.toString();
+      run.logs += text;
+      cwLogger.appendError(text);
+    });
 
     const timer = setTimeout(() => {
       run.status = "TIMEOUT";
       run.errorMessage = `Exceeded ${timeoutMs / 60000} min timeout`;
       child.kill("SIGKILL");
       execFile("docker", ["rm", "-f", `${NAME_PREFIX}run-${run.id}`], () => {});
+      cwLogger.close().catch(() => {});
     }, timeoutMs);
 
     child.on("close", (code) => {
@@ -535,6 +543,7 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
       run.executionTimeMs = Date.now() - started;
       rmSync(dir, { recursive: true, force: true });
       persist();
+      cwLogger.close().catch(() => {});
     });
     child.on("error", (e) => {
       clearTimeout(timer);
@@ -756,6 +765,7 @@ export async function runStatement(id: string, code: string): Promise<Statement>
     ranAt: new Date().toISOString(),
   };
   session.statements.push(stmt);
+  publishSessionLog(id, result.output, Date.now()).catch(() => {});
   return stmt;
 }
 

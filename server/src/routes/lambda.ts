@@ -36,6 +36,7 @@ import {
 } from "@aws-sdk/client-lambda";
 import { makeClient } from "../aws/clientFactory.js";
 import { asyncHandler, regionOf } from "../lib/http.js";
+import { ensureLogGroup } from "../glue/cwLogs.js";
 
 const upload = multer({ storage: multer.memoryStorage() });
 
@@ -131,6 +132,8 @@ lambdaRouter.post(
 
     // Best-effort wait so the function is invokable by the time the UI refreshes.
     await waitUntilFunctionActiveV2({ client: c, maxWaitTime: 30 }, { FunctionName: b.name }).catch(() => undefined);
+    // Create the function's CloudWatch log group, matching what AWS does on first deploy.
+    ensureLogGroup(`/aws/lambda/${b.name}`).catch(() => {});
     res.status(201).json({ name: out.FunctionName, arn: out.FunctionArn, state: out.State });
   }),
 );

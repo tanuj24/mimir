@@ -5,6 +5,7 @@ import { apiRouter } from "./routes/index.js";
 import { errorHandler } from "./lib/http.js";
 import { attachTerminal } from "./terminal.js";
 import { startEc2Reconcile } from "./ec2/cleanup.js";
+import { provisionGlueLogGroups } from "./glue/cwLogs.js";
 
 const app = express();
 
@@ -47,3 +48,6 @@ attachTerminal(server);
 
 // Reap orphaned the Mimir backend EC2 containers from terminated instances.
 startEc2Reconcile();
+
+// Pre-create standard CloudWatch log groups that AWS provisions automatically.
+provisionGlueLogGroups().catch(() => {});
