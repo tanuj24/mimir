@@ -55,30 +55,38 @@ These aren't mock jobs. They actually execute. They just run on Docker container
 
 ## Get started in 30 seconds
 
-### Docker Compose (recommended)
+### One container (recommended)
 
-Requires **Docker** (Desktop or Engine) with Compose.
+The entire tool — backend, server, and console — ships as a **single multi-arch
+image** ([`tanujsoni027/mimir-aws`](https://hub.docker.com/r/tanujsoni027/mimir-aws),
+amd64 + arm64). No clone, no build:
 
 ```bash
-git clone https://github.com/tanuj24/mimir.git
-cd mimir
-docker compose up -d
+docker run -d --name mimir \
+  -p 8080:80 -p 4566:4566 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /tmp/mimir-glue:/tmp/mimir-glue \
+  tanujsoni027/mimir-aws
 ```
 
 Open **http://localhost:8080**.
 
-That one command **pulls** the prebuilt multi-arch images (amd64 + arm64) from
-Docker Hub ([`tanujsoni027/mimir-aws`](https://hub.docker.com/r/tanujsoni027/mimir-aws)) and starts three services:
-- **mimir-backend** (the bundled local AWS cloud, port 4566)
-- **Mimir server** (the API proxy + Glue engine)
-- **Mimir web** (the console)
+- `8080` → the console · `4566` → the AWS edge (point your AWS CLI/SDKs here)
+- The Docker socket lets the container-backed services (Lambda, EC2, RDS, Glue)
+  spin up sibling containers; the `/tmp/mimir-glue` mount is only needed for Glue.
 
-Nothing compiles locally — you don't even need the source, just the
-`docker-compose.yml`. To build from source instead (for development), add
-`--build`:
+Stop it anytime: `docker rm -f mimir`.
+
+### Docker Compose
+
+Prefer Compose (separate containers, easy to rebuild a single piece)?
 
 ```bash
-docker compose up -d --build   # build everything from this repo
+git clone https://github.com/tanuj24/mimir.git
+cd mimir
+docker compose up -d           # pulls the prebuilt component images
+# or
+docker compose up -d --build   # build everything from source (for development)
 ```
 
 The backend stays on `localhost:4566`, so your existing AWS CLI/SDKs can hit the same local cloud:

@@ -21,6 +21,16 @@
 
     <dependencyManagement>
         <dependencies>
+            <!-- Override the Netty version the Quarkus BOM pulls in to a patched
+                 release (clears Docker Scout HIGH CVEs in netty-codec*). Declared
+                 BEFORE quarkus-bom so these versions win. -->
+            <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-bom</artifactId>
+                <version>4.1.133.Final</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>io.quarkus.platform</groupId>
                 <artifactId>quarkus-bom</artifactId>

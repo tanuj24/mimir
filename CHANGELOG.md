@@ -15,10 +15,21 @@ builds and runs as a single bundle.
 ### Added
 - **`mimir-backend/`** — the bundled local AWS cloud (Java / Quarkus emulator).
   `docker compose up` builds and runs it directly; no external image required.
-- **Prebuilt multi-arch images** (amd64 + arm64) published to Docker Hub at
+- **All-in-one image** — the whole tool (backend + server + console) ships as a
+  single multi-arch image (amd64 + arm64) at `tanujsoni027/mimir-aws`. Pull and
+  run everything in one container — no clone, no build:
+  `docker run -d -p 8080:80 -p 4566:4566 -v /var/run/docker.sock:/var/run/docker.sock tanujsoni027/mimir-aws`.
+- **Prebuilt component images** for the Compose path, published at
   `tanujsoni027/mimir-aws` (tags `:backend`, `:server`, `:web`). `docker compose
-  up -d` now pulls these by default — nothing compiles locally; use `--build`
-  to build from source instead.
+  up -d` pulls these; use `--build` to build from source instead.
+
+### Security
+- Hardened the published images (Docker Scout): bumped the embedded docker CLI
+  to a current Go toolchain (clears the golang stdlib CVEs), removed `npm` from
+  the runtime images (it bundled vulnerable `tar`/`minimatch`/`picomatch`), and
+  pinned Netty to `4.1.133.Final`. This takes the all-in-one image from
+  2 critical / 29 high to **0 critical / 3 high** (the remaining highs are
+  transitive Quarkus deps that need a backend platform upgrade).
 
 ### Changed
 - `docker compose` now builds and starts `mimir-backend` instead of pulling the
