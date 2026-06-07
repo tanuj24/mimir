@@ -67,7 +67,7 @@ ENV NODE_ENV=production \
 # bundles its own (vulnerable) copies of tar/minimatch/etc., so it must not ship.
 # `apk upgrade` pulls the latest patched base packages (e.g. libpng).
 RUN apk upgrade --no-cache libpng \
- && apk add --no-cache nodejs nginx bash ca-certificates
+ && apk add --no-cache nodejs nginx bash ca-certificates gcompat libc6-compat
 COPY --from=docker-source /usr/local/bin/docker /usr/local/bin/docker
 
 # server: install production deps here so node-pty (native) is compiled against
@@ -87,7 +87,7 @@ WORKDIR /app/duck
 COPY mimir-duck/package.json ./
 COPY mimir-duck/server.js ./
 RUN apk add --no-cache --virtual .duck-build npm python3 build-base linux-headers nodejs-dev cmake \
- && npm install --omit=dev && npm cache clean --force \
+ && npm_config_build_from_source=true npm install --omit=dev && npm cache clean --force \
  && apk del .duck-build
 
 # backend
