@@ -6,6 +6,7 @@ import { errorHandler } from "./lib/http.js";
 import { attachTerminal } from "./terminal.js";
 import { startEc2Reconcile } from "./ec2/cleanup.js";
 import { provisionGlueLogGroups } from "./glue/cwLogs.js";
+import { seedSampleData } from "./seed.js";
 
 const app = express();
 
@@ -51,3 +52,6 @@ startEc2Reconcile();
 
 // Pre-create standard CloudWatch log groups that AWS provisions automatically.
 provisionGlueLogGroups().catch(() => {});
+
+// Seed sample resources on first startup so the tool is immediately explorable.
+seedSampleData().catch(() => {});
