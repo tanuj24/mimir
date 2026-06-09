@@ -21,11 +21,128 @@ import {
   LoadingBlock,
   ErrorState,
   EmptyState,
+  CodeEditor,
   useToast,
   type Column,
+  type EditorInstance,
+  type MonacoInstance,
   DataTable,
 } from "@/components/ui";
 import { formatDate } from "@/lib/format";
+
+// ---------------------------------------------------------------------------
+// SQL statement extraction — finds the statement the cursor is in (bounded by
+// semicolons), respecting single-quoted strings and -- / /* */ comments.
+// ---------------------------------------------------------------------------
+function extractStatementAtOffset(sql: string, offset: number): string {
+  const stmts: { start: number; end: number; text: string }[] = [];
+  let start = 0;
+  let i = 0;
+  while (i < sql.length) {
+    const ch = sql[i];
+    // Line comment
+    if (ch === "-" && sql[i + 1] === "-") {
+      while (i < sql.length && sql[i] !== "\n") i++;
+      continue;
+    }
+    // Block comment
+    if (ch === "/" && sql[i + 1] === "*") {
+      i += 2;
+      while (i < sql.length && !(sql[i] === "*" && sql[i + 1] === "/")) i++;
+      i += 2;
+      continue;
+    }
+    // Single-quoted string
+    if (ch === "'") {
+      i++;
+      while (i < sql.length) {
+        if (sql[i] === "'" && sql[i + 1] === "'") { i += 2; continue; }
+        if (sql[i] === "'") break;
+        i++;
+      }
+      i++;
+      continue;
+    }
+    // Statement boundary
+    if (ch === ";") {
+      stmts.push({ start, end: i, text: sql.slice(start, i).trim() });
+      start = i + 1;
+    }
+    i++;
+  }
+  // Trailing statement without semicolon
+  const tail = sql.slice(start).trim();
+  if (tail) stmts.push({ start, end: sql.length, text: tail });
+
+  // Find which segment the cursor is in
+  let pos = 0;
+  for (const s of stmts) {
+    const segEnd = s.end + 1; // include the semicolon char
+    if (offset >= pos && offset <= segEnd) return s.text;
+    pos = segEnd;
+  }
+  return stmts[stmts.length - 1]?.text ?? sql.trim();
+}
+
+// ---------------------------------------------------------------------------
+// Monaco SQL validation — marks empty statements and unmatched parens.
+// ---------------------------------------------------------------------------
+function validateSql(sql: string, monaco: MonacoInstance, model: ReturnType<EditorInstance["getModel"]>) {
+  if (!model) return;
+  const markers: Parameters<MonacoInstance["editor"]["setModelMarkers"]>[2] = [];
+
+  // Check unmatched parentheses
+  let depth = 0;
+  let inStr = false;
+  for (let i = 0; i < sql.length; i++) {
+    const ch = sql[i];
+    if (ch === "'" && !inStr) { inStr = true; continue; }
+    if (ch === "'" && inStr) { inStr = false; continue; }
+    if (inStr) continue;
+    if (ch === "(") depth++;
+    if (ch === ")") {
+      depth--;
+      if (depth < 0) {
+        const pos = model.getPositionAt(i);
+        markers.push({
+          severity: monaco.MarkerSeverity.Error,
+          startLineNumber: pos.lineNumber, startColumn: pos.column,
+          endLineNumber: pos.lineNumber, endColumn: pos.column + 1,
+          message: "Unmatched closing parenthesis",
+        });
+        depth = 0;
+      }
+    }
+  }
+  if (depth > 0) {
+    const last = model.getPositionAt(sql.length);
+    markers.push({
+      severity: monaco.MarkerSeverity.Warning,
+      startLineNumber: last.lineNumber, startColumn: 1,
+      endLineNumber: last.lineNumber, endColumn: last.column,
+      message: `${depth} unclosed parenthesis${depth > 1 ? "es" : ""}`,
+    });
+  }
+
+  // Warn on empty statements (e.g. double semicolons: "SELECT 1;;")
+  const stmts = sql.split(";");
+  let offset = 0;
+  for (let si = 0; si < stmts.length - 1; si++) {
+    offset += stmts[si].length;
+    if (stmts[si].trim() === "" && si > 0) {
+      const pos = model.getPositionAt(offset);
+      markers.push({
+        severity: monaco.MarkerSeverity.Warning,
+        startLineNumber: pos.lineNumber, startColumn: pos.column,
+        endLineNumber: pos.lineNumber, endColumn: pos.column + 1,
+        message: "Empty statement",
+      });
+    }
+    offset++; // semicolon
+  }
+
+  monaco.editor.setModelMarkers(model, "athena", markers);
+}
 
 // ---- tiny helpers ----
 
@@ -295,20 +412,25 @@ function HistoryTable({
 // ---- main page ----
 
 const SAMPLES = [
-  { label: "Show databases", sql: "SHOW DATABASES" },
-  { label: "Show tables", sql: "SHOW TABLES" },
-  { label: "Query users", sql: 'SELECT * FROM "mimir_sample_db"."users" LIMIT 10' },
+  { label: "Show databases", sql: "SHOW DATABASES;" },
+  { label: "Show tables",    sql: "SHOW TABLES;" },
+  { label: "Query users",    sql: 'SELECT * FROM "mimir_sample_db"."users" LIMIT 10;' },
+  { label: "Query orders",   sql: 'SELECT * FROM "mimir_sample_db"."orders" LIMIT 10;' },
 ];
 
 export function AthenaPage() {
   const { notify } = useToast();
-  const [sql, setSql] = useState('SELECT * FROM "mimir_sample_db"."users" LIMIT 10');
+  const [sql, setSql] = useState(
+    'SELECT * FROM "mimir_sample_db"."users" LIMIT 10;\n\nSELECT * FROM "mimir_sample_db"."orders" LIMIT 10;',
+  );
   const [database, setDatabase] = useState<string | undefined>();
   const [activeId, setActiveId] = useState<string | null>(null);
   const [result, setResult] = useState<QueryExecution | null>(null);
   const [polling, setPolling] = useState(false);
   const [running, setRunning] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const editorRef = useRef<EditorInstance | null>(null);
+  const monacoRef = useRef<MonacoInstance | null>(null);
 
   const dbQ = useQuery({
     queryKey: ["athena", "databases"],
@@ -336,14 +458,28 @@ export function AthenaPage() {
     }
   }, [polling, activeId, poll]);
 
-  async function runQuery() {
-    if (!sql.trim() || running) return;
+  // Extract the SQL statement to run: selected text > statement at cursor > full text.
+  function getStatementToRun(): string {
+    const editor = editorRef.current;
+    const model = editor?.getModel();
+    if (editor && model) {
+      const sel = editor.getSelection();
+      if (sel && !sel.isEmpty()) return model.getValueInRange(sel).trim();
+      const pos = editor.getPosition();
+      if (pos) return extractStatementAtOffset(sql, model.getOffsetAt(pos));
+    }
+    return sql.trim();
+  }
+
+  async function runQuery(sqlOverride?: string) {
+    const sqlToRun = (sqlOverride ?? getStatementToRun()).trim();
+    if (!sqlToRun || running) return;
     setRunning(true);
     setResult(null);
     try {
-      const { queryExecutionId } = await athenaApi.startQuery(sql, database);
+      const { queryExecutionId } = await athenaApi.startQuery(sqlToRun, database);
       setActiveId(queryExecutionId);
-      setResult({ id: queryExecutionId, sql, state: "RUNNING", database });
+      setResult({ id: queryExecutionId, sql: sqlToRun, state: "RUNNING", database });
       setPolling(true);
     } catch (e) {
       notify("error", (e as Error).message);
@@ -442,26 +578,33 @@ export function AthenaPage() {
               ))}
             </div>
 
-            {/* sql textarea — dark like notebook */}
-            <textarea
+            {/* SQL editor */}
+            <CodeEditor
               value={sql}
-              onChange={(e) => setSql(e.target.value)}
-              rows={8}
-              spellCheck={false}
-              className="w-full resize-y bg-squid-900 p-4 font-mono text-sm leading-relaxed text-green-100 outline-none placeholder:text-ink-500"
-              placeholder="SELECT * FROM my_table LIMIT 10"
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                  e.preventDefault();
-                  runQuery();
-                }
+              onChange={(v) => {
+                setSql(v);
+                // Re-validate on change
+                const model = editorRef.current?.getModel();
+                const monaco = monacoRef.current;
+                if (model && monaco) validateSql(v, monaco, model);
               }}
+              onSubmit={() => { if (!running) runQuery(); }}
+              onEditorMount={(editor, monaco) => {
+                editorRef.current = editor;
+                monacoRef.current = monaco;
+                // Initial validation pass
+                validateSql(sql, monaco, editor.getModel());
+                // Configure SQL-specific editor options
+                editor.updateOptions({ wordWrap: "on" });
+              }}
+              language="sql"
+              minHeight={240}
             />
 
             {/* run bar */}
             <div className="flex items-center justify-between border-t border-line px-3 py-2">
               <span className="text-xs text-ink-500">
-                ⌘ Enter to run · results appear below
+                ⌘/Ctrl+Enter runs statement at cursor · select text to run a specific range · separate statements with <code>;</code>
               </span>
               <div className="flex gap-2">
                 {running && (
@@ -472,7 +615,7 @@ export function AthenaPage() {
                 <button
                   className="btn-primary"
                   disabled={!sql.trim() || running}
-                  onClick={runQuery}
+                  onClick={() => runQuery()}
                 >
                   {running ? (
                     <><Loader2 className="h-4 w-4 animate-spin" /> Running…</>

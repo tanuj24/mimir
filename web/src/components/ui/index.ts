@@ -8,4 +8,4 @@ export { ToastProvider, useToast } from "./Toast";
 export { ErrorState } from "./ErrorState";
 export { CodeBlock } from "./CodeBlock";
 export { DetailList, StatusBadge } from "./DetailList";
-export { CodeEditor } from "./CodeEditor";
+export { CodeEditor, type EditorInstance, type MonacoInstance } from "./CodeEditor";
