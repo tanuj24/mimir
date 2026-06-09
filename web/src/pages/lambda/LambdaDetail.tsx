@@ -4,12 +4,12 @@ import {
   ChevronLeft, Play, Save, Trash2, Plus, Upload, Link2, Copy, Tag, Layers, Cpu, Settings2, FileCode2, Webhook, GitBranch,
 } from "lucide-react";
 import {
-  lambdaApi, RUNTIMES, ARCHITECTURES, runtimeDefaults,
+  lambdaApi, RUNTIMES, ARCHITECTURES, runtimeDefaults, runtimeLanguage,
   type LambdaDetail as Detail, type InvokeResult, type LambdaVersion, type LambdaTrigger,
 } from "./lambdaApi";
 import { formatBytes, formatDate } from "@/lib/format";
 import {
-  DataTable, LoadingBlock, ErrorState, EmptyState, StatusBadge, CodeBlock, ConfirmDialog, useToast, type Column,
+  DataTable, LoadingBlock, ErrorState, EmptyState, StatusBadge, CodeBlock, ConfirmDialog, CodeEditor, useToast, type Column,
 } from "@/components/ui";
 
 type Tab = "code" | "test" | "config" | "versions" | "triggers";
@@ -144,7 +144,7 @@ function CodeTab({ fn, onDone }: { fn: Detail; onDone: () => void }) {
         ) : (
           <>
             <label className="label">Source code <span className="text-ink-500">(deploying replaces the function package)</span></label>
-            <textarea className="input min-h-[360px] font-mono text-xs" spellCheck={false} value={code} onChange={(e) => setCode(e.target.value)} />
+            <CodeEditor value={code} onChange={setCode} language={runtimeLanguage(fn.runtime ?? "python3.12")} minHeight={380} className="rounded border border-line" />
           </>
         )}
         <div className="mt-3 flex items-center gap-3">

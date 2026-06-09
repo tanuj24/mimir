@@ -27,8 +27,8 @@ import { SecretsManagerClient, DescribeSecretCommand } from "@aws-sdk/client-sec
 import { SSMClient, GetParameterCommand } from "@aws-sdk/client-ssm";
 import { CloudWatchLogsClient, DescribeLogGroupsCommand } from "@aws-sdk/client-cloudwatch-logs";
 import { CloudWatchClient, ListMetricsCommand } from "@aws-sdk/client-cloudwatch";
-import { GlueClient, GetJobCommand } from "@aws-sdk/client-glue";
 import { ECSClient, DescribeClustersCommand } from "@aws-sdk/client-ecs";
+import { getJob } from "../glue/engine.js";
 import { ECRClient, DescribeRepositoriesCommand } from "@aws-sdk/client-ecr";
 
 const SEEDERS: Record<string, () => Promise<void>> = {
@@ -107,10 +107,7 @@ const STATUS_CHECKS: Record<string, () => Promise<boolean>> = {
     return (res.Metrics?.length ?? 0) > 0;
   },
 
-  glue: () =>
-    makeClient(GlueClient, {})
-      .send(new GetJobCommand({ JobName: "mimir-sample-etl" }))
-      .then(() => true).catch(() => false),
+  glue: () => Promise.resolve(!!getJob("mimir-hudi-ingest")),
 
   ecs: async () => {
     const res = await makeClient(ECSClient, {})

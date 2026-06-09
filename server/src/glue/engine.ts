@@ -70,6 +70,20 @@ function awsEnvArgs(): string[] {
 }
 
 /**
+ * Spark confs required for Apache Hudi when a job specifies --datalake-formats hudi.
+ * In the real Glue service these are injected automatically by the control plane;
+ * locally we inject them ourselves when the parameter is present.
+ */
+function hudiSparkConf(): string[] {
+  return [
+    ["spark.serializer", "org.apache.spark.serializer.KryoSerializer"],
+    ["spark.sql.extensions", "org.apache.spark.sql.hudi.HoodieSparkSessionExtension"],
+    ["spark.sql.catalog.spark_catalog", "org.apache.spark.sql.hudi.catalog.HoodieCatalog"],
+    ["spark.kryo.registrator", "org.apache.spark.HoodieSparkKryoRegistrar"],
+  ].flatMap(([k, v]) => ["--conf", `${k}=${v}`]);
+}
+
+/**
  * Spark confs that point the runtime at the Mimir backend so unmodified Glue code "just
  * works" against the local stack:
  *   - fs.s3a.*          -> DataFrame/DynamicFrame S3 reads & writes
@@ -203,6 +217,7 @@ export interface JobConfig {
   extraFiles: string; // comma-separated  -> --extra-files / --files
   additionalPythonModules: string; // comma-separated pip packages -> pip install
   parameters: JobParameter[]; // default arguments (job parameters)
+  sparkUiEnabled: boolean; // expose Spark UI on port 4040 during runs (uses extra memory)
 }
 
 export function defaultJobConfig(type: JobType): JobConfig {
@@ -220,6 +235,7 @@ export function defaultJobConfig(type: JobType): JobConfig {
     extraFiles: "",
     additionalPythonModules: "",
     parameters: [],
+    sparkUiEnabled: false,
   };
 }
 
@@ -230,6 +246,7 @@ export interface GlueJob {
   role: string;
   glueVersion: string;
   script: string;
+  scriptLocation?: string; // S3 URI (mirrors AWS Glue ScriptLocation); fetched at run time
   config: JobConfig;
   createdOn: string;
   lastModifiedOn: string;
@@ -244,6 +261,7 @@ export interface JobRun {
   executionTimeMs?: number;
   logs: string;
   errorMessage?: string;
+  sparkUiUrl?: string;
 }
 
 export interface SessionMeta {
@@ -337,6 +355,7 @@ export function upsertJob(input: {
   name: string;
   type: JobType;
   script: string;
+  scriptLocation?: string;
   description?: string;
   role?: string;
   config?: Partial<JobConfig>;
@@ -349,6 +368,7 @@ export function upsertJob(input: {
     name: input.name,
     type: input.type,
     script: input.script,
+    scriptLocation: input.scriptLocation,
     description: input.description,
     role: input.role ?? "arn:aws:iam::000000000000:role/GlueServiceRole",
     glueVersion: config.glueVersion,
@@ -451,7 +471,24 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
 
   const dir = mkdtempSync(join(WORK_DIR, "mimir-glue-"));
   const scriptPath = join(dir, "script.py");
-  writeFileSync(scriptPath, job.script);
+
+  // If a scriptLocation is set, fetch the script from S3; fall back to inline script.
+  if (job.scriptLocation?.startsWith("s3://")) {
+    try {
+      const [, , bucket, ...rest] = job.scriptLocation.split("/");
+      const key = rest.join("/");
+      const s3c = makeClient(S3Client, { forcePathStyle: true });
+      const res = await s3c.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
+      const bytes = await res.Body!.transformToByteArray();
+      writeFileSync(scriptPath, Buffer.from(bytes));
+      log(`[mimir] loaded script from ${job.scriptLocation} (${bytes.length} bytes)\n`);
+    } catch (e) {
+      log(`[mimir] WARNING: could not fetch ${job.scriptLocation}: ${(e as Error).message} — using inline script\n`);
+      writeFileSync(scriptPath, job.script);
+    }
+  } else {
+    writeFileSync(scriptPath, job.script);
+  }
   makeWorldReadable(dir, scriptPath);
 
   try {
@@ -478,9 +515,24 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
       // Endpoint config for the Glue catalog client (from_catalog) lives in the
       // work dir, which we put on the driver classpath below.
       writeGlueCatalogConf(dir);
+      // Detect --datalake-formats hudi and inject the required Spark extensions.
+      const datalakeFormats = (
+        cfg.parameters.find((p) => p.key === "--datalake-formats" || p.key === "datalake-formats")?.value ?? ""
+      ).split(",").map((s) => s.trim());
+      const hasHudi = datalakeFormats.includes("hudi");
       // $SPARK_HOME differs per image (/home/glue_user/spark, /usr/lib/spark…),
       // so reference it from the shell rather than hard-coding a path.
       const submit = ["--master", `local[${cores}]`, ...s3aConf()];
+      if (hasHudi) submit.push(...hudiSparkConf());
+      if (cfg.sparkUiEnabled) {
+        submit.push(
+          "--conf", "spark.ui.enabled=true",
+          "--conf", "spark.ui.port=4040",
+        );
+        run.sparkUiUrl = "http://localhost:4040";
+      } else {
+        submit.push("--conf", "spark.ui.enabled=false");
+      }
       if (pyFiles.length) submit.push("--py-files", pyFiles.join(","));
       if (jars.length) submit.push("--jars", jars.join(","));
       if (files.length) submit.push("--files", files.join(","));
@@ -505,6 +557,7 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
       `${NAME_PREFIX}run-${run.id}`,
       ...ADD_HOST,
       ...awsEnvArgs(),
+      ...(isSpark && cfg.sparkUiEnabled ? ["-p", "4040:4040"] : []),
       "-v",
       `${dir}:${CONTAINER_WORK}`,
       "-w",

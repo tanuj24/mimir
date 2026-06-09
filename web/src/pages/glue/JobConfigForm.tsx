@@ -99,6 +99,24 @@ export function JobConfigForm({
           <Field label="Temporary directory (--TempDir)">
             <input className="input" value={config.tempDir} onChange={(e) => set("tempDir", e.target.value)} placeholder="s3://bucket/temp/" />
           </Field>
+          {isSpark && (
+            <div>
+              <label className="label">Spark UI</label>
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded"
+                  checked={!!config.sparkUiEnabled}
+                  onChange={(e) => set("sparkUiEnabled", e.target.checked)}
+                />
+                <span className="text-sm">Enable Spark UI (port 4040)</span>
+              </label>
+              <p className="mt-1 text-xs text-ink-500">
+                Exposes the Spark web UI at <code>http://localhost:4040</code> while the job runs.
+                Requires more memory — the Spark driver keeps an in-memory event log.
+              </p>
+            </div>
+          )}
         </div>
       </section>
 

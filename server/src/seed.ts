@@ -63,8 +63,6 @@ import {
   GlueClient,
   CreateDatabaseCommand,
   CreateTableCommand as GlueCreateTableCommand,
-  CreateJobCommand,
-  GetJobCommand,
 } from "@aws-sdk/client-glue";
 import {
   ECSClient,
@@ -82,6 +80,7 @@ import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { makeClient } from "./aws/clientFactory.js";
 import { config } from "./config.js";
+import { upsertJob, getJob } from "./glue/engine.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -186,6 +185,9 @@ export async function seedS3() {
     "p4,ServerMon,19.99,monitoring,1500\n",
     "text/csv"
   );
+
+  // Placeholder so the Hudi output prefix exists before the first job run.
+  await put("hudi/.keep", "", "text/plain");
 }
 
 // ---------------------------------------------------------------------------
@@ -509,54 +511,18 @@ export async function seedCloudWatchMetrics() {
 }
 
 // ---------------------------------------------------------------------------
-// Glue — sample job + catalog
+// Glue — sample jobs + catalog
 // ---------------------------------------------------------------------------
 export async function seedGlue() {
-  const cl = makeClient(GlueClient, {});
+  if (getJob("mimir-hudi-ingest")) return;
 
-  const exists = await cl
-    .send(new GetJobCommand({ JobName: "mimir-sample-etl" }))
-    .then(() => true)
-    .catch(() => false);
-  if (exists) return;
+  const cl = makeClient(GlueClient, {});
 
   await cl.send(new CreateDatabaseCommand({
     DatabaseInput: { Name: "mimir_sample_db", Description: "Mimir sample data catalog database" },
   })).catch(ignore(["AlreadyExistsException"]));
 
-  await cl.send(new CreateJobCommand({
-    Name: "mimir-sample-etl",
-    Role: "arn:aws:iam::000000000000:role/GlueServiceRole",
-    Description: "Sample Python-shell ETL job — reads users from S3, counts by role",
-    Command: { Name: "pythonshell", PythonVersion: "3" },
-    DefaultArguments: {
-      "--TempDir": "s3://mimir-sample-data/temp/",
-      "--job-language": "python",
-    },
-    GlueVersion: "4.0",
-    ExecutionProperty: { MaxConcurrentRuns: 1 },
-    Timeout: 5,
-    MaxCapacity: 0.0625,
-  } as never)).catch(ignore(["AlreadyExistsException", "IdempotentParameterMismatchException"]));
-
-  await cl.send(new CreateJobCommand({
-    Name: "mimir-spark-transform",
-    Role: "arn:aws:iam::000000000000:role/GlueServiceRole",
-    Description: "Sample Spark ETL — reads orders, groups by status, writes Parquet",
-    Command: { Name: "glueetl", PythonVersion: "3", ScriptLocation: "s3://mimir-sample-data/scripts/spark_transform.py" },
-    DefaultArguments: {
-      "--TempDir": "s3://mimir-sample-data/temp/",
-      "--job-language": "python",
-      "--enable-metrics": "true",
-    },
-    GlueVersion: "4.0",
-    WorkerType: "G.1X",
-    NumberOfWorkers: 2,
-    ExecutionProperty: { MaxConcurrentRuns: 1 },
-    Timeout: 10,
-  } as never)).catch(ignore(["AlreadyExistsException"]));
-
-  // Glue catalog tables — each points to a CSV prefix in mimir-sample-data.
+  // Glue catalog tables — each points to a prefix in mimir-sample-data.
   // AthenaService builds `read_csv_auto('s3://bucket/tables/NAME/**')` from these.
   const csvTable = (name: string, columns: { Name: string; Type: string }[]) =>
     cl.send(new GlueCreateTableCommand({
@@ -602,6 +568,190 @@ export async function seedGlue() {
     { Name: "category",   Type: "string" },
     { Name: "stock",      Type: "int" },
   ]);
+
+  // Hudi catalog table — points to the Hudi CoW output prefix.
+  await cl.send(new GlueCreateTableCommand({
+    DatabaseName: "mimir_sample_db",
+    TableInput: {
+      Name: "hudi_events",
+      TableType: "EXTERNAL_TABLE",
+      StorageDescriptor: {
+        Location: "s3://mimir-sample-data/hudi/hudi_events",
+        InputFormat: "org.apache.hudi.hadoop.HoodieParquetInputFormat",
+        OutputFormat: "org.apache.hudi.hadoop.HoodieParquetOutputFormat",
+        SerdeInfo: {
+          SerializationLibrary: "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe",
+          Parameters: { "serialization.format": "1" },
+        },
+        Columns: [
+          { Name: "event_id", Type: "string" },
+          { Name: "user_id",  Type: "string" },
+          { Name: "event",    Type: "string" },
+          { Name: "ts",       Type: "string" },
+        ],
+      },
+      Parameters: {
+        EXTERNAL: "TRUE",
+        "hoodie.table.name": "hudi_events",
+        "hoodie.table.type": "COPY_ON_WRITE",
+      },
+    },
+  })).catch(ignore(["AlreadyExistsException"]));
+
+  // Upload job scripts to S3 (mirrors AWS Glue ScriptLocation pattern).
+  // Scripts live at s3://mimir-sample-data/scripts/<job>.py so users can see
+  // the same pattern they'd use in real AWS Glue.
+  const s3 = makeClient(S3Client, { forcePathStyle: true });
+  await s3.send(new CreateBucketCommand({ Bucket: "mimir-sample-data" })).catch(ignore(["BucketAlreadyExists", "BucketAlreadyOwnedByYou"]));
+  const putScript = (name: string, body: string) =>
+    s3.send(new PutObjectCommand({
+      Bucket: "mimir-sample-data",
+      Key: `scripts/${name}`,
+      Body: body,
+      ContentType: "text/x-python",
+    })).catch(ignore([]));
+
+  const etlScript = `import sys
+from datetime import datetime
+from awsglue.utils import getResolvedOptions
+import boto3, json
+
+args = getResolvedOptions(sys.argv, ["JOB_NAME"])
+print("Job", args["JOB_NAME"], "started at", datetime.utcnow().isoformat())
+
+s3 = boto3.client("s3")
+obj = s3.get_object(Bucket="mimir-sample-data", Key="data/users.json")
+users = json.loads(obj["Body"].read())
+counts = {}
+for u in users:
+    r = u.get("role", "unknown")
+    counts[r] = counts.get(r, 0) + 1
+print("Users by role:", counts)
+print("Done.")
+`;
+
+  const sparkScript = `import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+
+args = getResolvedOptions(sys.argv, ["JOB_NAME"])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args["JOB_NAME"], args)
+
+df = spark.read.option("header", "true").csv("s3a://mimir-sample-data/tables/orders/orders.csv")
+summary = df.groupBy("status").count().orderBy("count", ascending=False)
+summary.show()
+summary.write.mode("overwrite").parquet("s3a://mimir-sample-data/output/order-status-summary/")
+print("Orders by status written to S3.")
+job.commit()
+`;
+
+  const hudiScript = `import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+
+args = getResolvedOptions(sys.argv, ["JOB_NAME"])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args["JOB_NAME"], args)
+
+events = [
+    {"event_id": "e1", "user_id": "u1", "event": "login",    "ts": "2024-04-01T08:00:00Z"},
+    {"event_id": "e2", "user_id": "u2", "event": "purchase",  "ts": "2024-04-01T09:30:00Z"},
+    {"event_id": "e3", "user_id": "u3", "event": "logout",    "ts": "2024-04-01T10:00:00Z"},
+    {"event_id": "e4", "user_id": "u1", "event": "purchase",  "ts": "2024-04-02T11:00:00Z"},
+]
+df = spark.createDataFrame(events)
+
+hudi_options = {
+    "hoodie.table.name": "hudi_events",
+    "hoodie.datasource.write.recordkey.field": "event_id",
+    "hoodie.datasource.write.precombine.field": "ts",
+    "hoodie.datasource.write.operation": "upsert",
+    "hoodie.datasource.write.table.type": "COPY_ON_WRITE",
+    "hoodie.datasource.hive_sync.enable": "false",
+}
+output_path = "s3a://mimir-sample-data/hudi/hudi_events/"
+df.write.format("hudi").options(**hudi_options).mode("append").save(output_path)
+
+print("Hudi write complete. Records:", df.count())
+job.commit()
+`;
+
+  await Promise.all([
+    putScript("mimir-sample-etl.py", etlScript),
+    putScript("mimir-spark-transform.py", sparkScript),
+    putScript("mimir-hudi-ingest.py", hudiScript),
+  ]);
+
+  // ETL jobs — stored in the local engine (Mimir backend has no Glue job API).
+  upsertJob({
+    name: "mimir-sample-etl",
+    type: "pythonshell",
+    description: "Sample Python-shell ETL — reads users from S3, counts by role",
+    role: "arn:aws:iam::000000000000:role/GlueServiceRole",
+    scriptLocation: "s3://mimir-sample-data/scripts/mimir-sample-etl.py",
+    script: etlScript,
+    config: {
+      glueVersion: "4.0",
+      timeoutMinutes: 5,
+      parameters: [
+        { key: "--TempDir", value: "s3://mimir-sample-data/temp/" },
+        { key: "--job-language", value: "python" },
+      ],
+    },
+  });
+
+  upsertJob({
+    name: "mimir-spark-transform",
+    type: "glueetl",
+    description: "Sample Spark ETL — reads orders CSV, groups by status, writes Parquet",
+    role: "arn:aws:iam::000000000000:role/GlueServiceRole",
+    scriptLocation: "s3://mimir-sample-data/scripts/mimir-spark-transform.py",
+    script: sparkScript,
+    config: {
+      glueVersion: "4.0",
+      workerType: "G.1X",
+      numberOfWorkers: 2,
+      timeoutMinutes: 10,
+      parameters: [
+        { key: "--TempDir", value: "s3://mimir-sample-data/temp/" },
+        { key: "--job-language", value: "python" },
+        { key: "--enable-metrics", value: "true" },
+      ],
+    },
+  });
+
+  upsertJob({
+    name: "mimir-hudi-ingest",
+    type: "glueetl",
+    description: "Sample Hudi ingest — upserts events into a Copy-on-Write Hudi table on S3",
+    role: "arn:aws:iam::000000000000:role/GlueServiceRole",
+    scriptLocation: "s3://mimir-sample-data/scripts/mimir-hudi-ingest.py",
+    script: hudiScript,
+    config: {
+      glueVersion: "4.0",
+      workerType: "G.1X",
+      numberOfWorkers: 2,
+      timeoutMinutes: 15,
+      parameters: [
+        { key: "--TempDir", value: "s3://mimir-sample-data/temp/" },
+        { key: "--job-language", value: "python" },
+        { key: "--datalake-formats", value: "hudi" },
+      ],
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------

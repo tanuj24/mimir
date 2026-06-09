@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Zap, RefreshCw, Trash2, Play, Plus } from "lucide-react";
 import { SeedDataButton } from "@/components/SeedDataButton";
-import { lambdaApi, RUNTIMES, ARCHITECTURES, runtimeDefaults, type LambdaFn, type InvokeResult } from "./lambdaApi";
+import { lambdaApi, RUNTIMES, ARCHITECTURES, runtimeDefaults, runtimeLanguage, type LambdaFn, type InvokeResult } from "./lambdaApi";
 import { LambdaDetail } from "./LambdaDetail";
 import { formatBytes, formatDate } from "@/lib/format";
 import {
@@ -14,6 +14,7 @@ import {
   Modal,
   ConfirmDialog,
   CodeBlock,
+  CodeEditor,
   useToast,
   type Column,
 } from "@/components/ui";
@@ -190,14 +191,12 @@ function CreateModal({ open, onClose }: { open: boolean; onClose: () => void }) 
         ) : (
           <div>
             <label className="label">Code</label>
-            <textarea
-              className="input min-h-[160px] font-mono text-xs"
+            <CodeEditor
               value={code}
-              spellCheck={false}
-              onChange={(e) => {
-                setCode(e.target.value);
-                setTouchedCode(true);
-              }}
+              onChange={(v) => { setCode(v); setTouchedCode(true); }}
+              language={runtimeLanguage(runtime)}
+              minHeight={200}
+              className="rounded border border-line"
             />
           </div>
         )}

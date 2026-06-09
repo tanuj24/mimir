@@ -13,6 +13,9 @@ export interface GlueTable {
   tableType?: string;
   columns: { name: string; type: string; comment?: string }[];
   location?: string;
+  inputFormat?: string;
+  outputFormat?: string;
+  parameters?: Record<string, string>;
   createTime?: string;
 }
 
@@ -36,6 +39,7 @@ export interface JobConfig {
   extraFiles: string;
   additionalPythonModules: string;
   parameters: JobParameter[];
+  sparkUiEnabled: boolean;
 }
 export interface GlueJob {
   name: string;
@@ -44,6 +48,7 @@ export interface GlueJob {
   role: string;
   glueVersion: string;
   script: string;
+  scriptLocation?: string;
   config: JobConfig;
   createdOn: string;
   lastModifiedOn: string;
@@ -58,6 +63,7 @@ export interface JobRun {
   executionTimeMs?: number;
   logs: string;
   errorMessage?: string;
+  sparkUiUrl?: string;
 }
 
 // ---- Sessions / notebooks (local engine) ----
@@ -95,6 +101,7 @@ export const glueApi = {
     name: string;
     type: JobType;
     script: string;
+    scriptLocation?: string;
     description?: string;
     config?: Partial<JobConfig>;
   }): Promise<{ job: GlueJob }> => api.put("/glue/jobs", body),
@@ -115,6 +122,45 @@ export const glueApi = {
     api.post(`/glue/sessions/${encodeURIComponent(id)}/statements`, { code }),
   deleteSession: (id: string) => api.post(`/glue/sessions/${encodeURIComponent(id)}/delete`),
 };
+
+export const HUDI_JOB_TEMPLATE = `# AWS Glue — Spark job writing in Apache Hudi (Copy-on-Write) format.
+# Add --datalake-formats hudi to job parameters — Mimir auto-injects the required
+# Spark/Hudi conf so the job works identically to real AWS Glue 4.0.
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+
+args = getResolvedOptions(sys.argv, ["JOB_NAME"])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args["JOB_NAME"], args)
+
+# Sample records to upsert into the Hudi table.
+records = [
+    {"id": "r1", "name": "Alice", "score": 95, "ts": "2024-04-01T08:00:00Z"},
+    {"id": "r2", "name": "Bob",   "score": 82, "ts": "2024-04-01T09:00:00Z"},
+]
+df = spark.createDataFrame(records)
+
+hudi_options = {
+    "hoodie.table.name": "my_hudi_table",
+    "hoodie.datasource.write.recordkey.field": "id",
+    "hoodie.datasource.write.precombine.field": "ts",
+    "hoodie.datasource.write.operation": "upsert",
+    "hoodie.datasource.write.table.type": "COPY_ON_WRITE",
+    "hoodie.datasource.hive_sync.enable": "false",
+}
+output_path = "s3a://my-bucket/hudi/my_hudi_table/"
+df.write.format("hudi").options(**hudi_options).mode("append").save(output_path)
+
+print("Hudi upsert complete. Records:", df.count())
+job.commit()
+`;
 
 export const JOB_TEMPLATES: Record<JobType, string> = {
   pythonshell: `# AWS Glue — Python shell job. Runs on the real Glue runtime image, so the

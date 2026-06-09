@@ -183,3 +183,11 @@ export function runtimeDefaults(runtime: string): { handler: string; code: strin
     code: `export const handler = async (event) => {\n  return { statusCode: 200, body: "Hello from Lambda!" };\n};\n`,
   };
 }
+
+export function runtimeLanguage(runtime: string): string {
+  if (runtime.startsWith("python")) return "python";
+  if (runtime.startsWith("nodejs")) return "javascript";
+  if (runtime.startsWith("ruby")) return "ruby";
+  if (runtime.startsWith("java")) return "java";
+  return "plaintext";
+}

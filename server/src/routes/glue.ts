@@ -69,6 +69,9 @@ glueRouter.get(
           comment: c.Comment,
         })),
         location: t.StorageDescriptor?.Location,
+        inputFormat: t.StorageDescriptor?.InputFormat,
+        outputFormat: t.StorageDescriptor?.OutputFormat,
+        parameters: t.Parameters,
         createTime: t.CreateTime,
       })),
     });
@@ -97,17 +100,18 @@ glueRouter.get(
 glueRouter.put(
   "/jobs",
   asyncHandler(async (req, res) => {
-    const { name, type, script, description, role, config } = req.body as {
+    const { name, type, script, scriptLocation, description, role, config } = req.body as {
       name: string;
       type: engine.JobType;
       script: string;
+      scriptLocation?: string;
       description?: string;
       role?: string;
       config?: Partial<engine.JobConfig>;
     };
     if (!name || !type || script === undefined)
       return res.status(400).json({ error: { code: "BadRequest", message: "name, type, script required" } });
-    res.json({ job: engine.upsertJob({ name, type, script, description, role, config }) });
+    res.json({ job: engine.upsertJob({ name, type, script, scriptLocation, description, role, config }) });
   }),
 );
 

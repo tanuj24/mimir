@@ -11,6 +11,7 @@ import {
   Modal,
   ConfirmDialog,
   StatusBadge,
+  CodeEditor,
   useToast,
   type Column,
 } from "@/components/ui";
@@ -87,22 +88,15 @@ function Notebook({ id, onBack }: { id: string; onBack: () => void }) {
             <div className="w-12 shrink-0 select-none border-r border-line bg-canvas/60 py-2 text-center font-mono text-xs text-mimir">
               [ ]
             </div>
-            <textarea
-              className="min-h-[120px] flex-1 resize-y bg-squid-900 p-3 font-mono text-xs leading-relaxed text-green-100 outline-none"
-              placeholder={
-                ready
-                  ? "Type Python code and press ⌘/Ctrl+Enter to run…"
-                  : idle
-                    ? "Idle kernel — run a cell to resume (state is reset)…"
-                    : "Waiting for kernel…"
-              }
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              onKeyDown={(e) => {
-                if ((e.metaKey || e.ctrlKey) && e.key === "Enter" && code.trim() && canRun) runCell.mutate();
-              }}
-              spellCheck={false}
-            />
+            <div className="flex-1">
+              <CodeEditor
+                value={code}
+                onChange={setCode}
+                onSubmit={() => { if (code.trim() && canRun) runCell.mutate(); }}
+                language="python"
+                minHeight={160}
+              />
+            </div>
           </div>
           <div className="flex items-center justify-between border-t border-line px-3 py-2">
             <span className="text-xs text-ink-500">⌘/Ctrl + Enter to run · state persists across cells · kernel auto-stops after 120 min idle</span>

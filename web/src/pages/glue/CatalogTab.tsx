@@ -14,6 +14,15 @@ import {
   type Column,
 } from "@/components/ui";
 
+function formatBadge(inputFormat?: string): string | null {
+  if (!inputFormat) return null;
+  if (inputFormat.includes("HoodieParquet")) return "Hudi";
+  if (inputFormat.includes("parquet") || inputFormat.toLowerCase().includes("parquet")) return "Parquet";
+  if (inputFormat.includes("OrcInputFormat")) return "ORC";
+  if (inputFormat.includes("TextInputFormat")) return "CSV";
+  return null;
+}
+
 function TablesModal({ db, onClose }: { db: GlueDatabase | null; onClose: () => void }) {
   const q = useQuery({
     queryKey: ["glue", "tables", db?.name],
@@ -28,25 +37,36 @@ function TablesModal({ db, onClose }: { db: GlueDatabase | null; onClose: () => 
         <EmptyState icon={Table2} title="No tables" description="This database has no catalog tables." />
       ) : (
         <div className="space-y-4">
-          {q.data?.tables.map((t) => (
-            <div key={t.name} className="card p-4">
-              <div className="mb-2 flex items-center justify-between">
-                <p className="font-medium">{t.name}</p>
-                <span className="text-xs text-ink-500">{t.tableType ?? "TABLE"}</span>
+          {q.data?.tables.map((t) => {
+            const badge = formatBadge(t.inputFormat);
+            const isHudi = badge === "Hudi";
+            return (
+              <div key={t.name} className="card p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <p className="font-medium">{t.name}</p>
+                    {badge && (
+                      <span className={`rounded px-1.5 py-0.5 text-xs font-medium ${isHudi ? "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400" : "bg-ink-100 text-ink-600 dark:bg-ink-800 dark:text-ink-400"}`}>
+                        {badge}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs text-ink-500">{t.tableType ?? "TABLE"}</span>
+                </div>
+                {t.location && <p className="mb-2 font-mono text-xs text-ink-500">{t.location}</p>}
+                <DataTable
+                  columns={[
+                    { key: "col", header: "Column", render: (c) => <span className="font-mono text-xs">{c.name}</span> },
+                    { key: "type", header: "Type", render: (c) => <span className="font-mono text-xs text-link">{c.type}</span> },
+                    { key: "comment", header: "Comment", render: (c) => c.comment ?? "—" },
+                  ]}
+                  rows={t.columns}
+                  rowKey={(c) => c.name}
+                  empty={<EmptyState icon={Table2} title="No columns" />}
+                />
               </div>
-              {t.location && <p className="mb-2 font-mono text-xs text-ink-500">{t.location}</p>}
-              <DataTable
-                columns={[
-                  { key: "col", header: "Column", render: (c) => <span className="font-mono text-xs">{c.name}</span> },
-                  { key: "type", header: "Type", render: (c) => <span className="font-mono text-xs text-link">{c.type}</span> },
-                  { key: "comment", header: "Comment", render: (c) => c.comment ?? "—" },
-                ]}
-                rows={t.columns}
-                rowKey={(c) => c.name}
-                empty={<EmptyState icon={Table2} title="No columns" />}
-              />
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </Modal>

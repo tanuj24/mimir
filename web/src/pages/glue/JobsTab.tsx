@@ -12,6 +12,7 @@ import {
   Modal,
   ConfirmDialog,
   StatusBadge,
+  CodeEditor,
   useToast,
   type Column,
 } from "@/components/ui";
@@ -144,15 +145,18 @@ function JobDetail({ name, onBack }: { name: string; onBack: () => void }) {
 
       {sub === "script" && (
         <div className="card overflow-hidden">
-          <div className="border-b border-line bg-canvas/60 px-3 py-1.5 text-xs font-medium text-ink-500">
-            {job?.type === "glueetl" ? "PySpark script (spark-submit)" : "Python script"}
+          <div className="flex items-center justify-between border-b border-line bg-canvas/60 px-3 py-1.5">
+            <span className="text-xs font-medium text-ink-500">
+              {job?.type === "glueetl" ? "PySpark script (spark-submit)" : "Python script"}
+            </span>
+            {job?.scriptLocation && (
+              <span className="flex items-center gap-1 rounded bg-ink-100 px-2 py-0.5 font-mono text-xs text-ink-600 dark:bg-ink-800 dark:text-ink-400" title="Script location in S3">
+                <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path d="M10 2a6 6 0 00-5.5 8.38L2.22 17.78a.75.75 0 001.06 1.06l7.4-2.28A6 6 0 1010 2z"/></svg>
+                {job.scriptLocation}
+              </span>
+            )}
           </div>
-          <textarea
-            className="min-h-[520px] w-full resize-y bg-squid-900 p-3 font-mono text-xs leading-relaxed text-green-100 outline-none"
-            value={script}
-            onChange={(e) => setScript(e.target.value)}
-            spellCheck={false}
-          />
+          <CodeEditor value={script} onChange={setScript} language="python" minHeight={520} />
         </div>
       )}
 
@@ -183,6 +187,17 @@ function JobDetail({ name, onBack }: { name: string; onBack: () => void }) {
         <div className="mb-2 flex items-center gap-3 text-sm">
           <StatusBadge status={openRun?.status} />
           {openRun?.executionTimeMs != null && <span className="text-ink-500">{(openRun.executionTimeMs / 1000).toFixed(2)}s</span>}
+          {openRun?.sparkUiUrl && openRun.status === "RUNNING" && (
+            <a
+              href={openRun.sparkUiUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ml-auto flex items-center gap-1 rounded bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700 hover:bg-orange-200 dark:bg-orange-900/30 dark:text-orange-400"
+            >
+              <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+              Spark UI
+            </a>
+          )}
         </div>
         {openRun?.errorMessage && <p className="mb-2 text-sm text-danger">{openRun.errorMessage}</p>}
         <pre className="max-h-[50vh] overflow-auto rounded-lg bg-squid-900 p-3 font-mono text-xs text-green-100">
