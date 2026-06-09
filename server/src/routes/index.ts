@@ -17,6 +17,7 @@ import { glueRouter } from "./glue.js";
 import { kafkaRouter } from "./kafka.js";
 import { athenaRouter } from "./athena.js";
 import { systemRouter } from "./system.js";
+import { seedRouter } from "./seed.js";
 
 /**
  * Mounts every service router under /api/<service>.
@@ -42,3 +43,4 @@ apiRouter.use("/glue", glueRouter);
 apiRouter.use("/kafka", kafkaRouter);
 apiRouter.use("/athena", athenaRouter);
 apiRouter.use("/system", systemRouter);
+apiRouter.use("/seed", seedRouter);

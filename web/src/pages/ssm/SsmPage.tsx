@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Settings2, RefreshCw, Trash2, Eye } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { ssmApi, type Parameter } from "./ssmApi";
 import { formatDate } from "@/lib/format";
 import {
@@ -103,6 +104,7 @@ export function SsmPage() {
         crumbs={[{ label: "Console Home", to: "/" }, { label: "SSM Parameters" }]}
         actions={
           <>
+            <SeedDataButton service="ssm" onSuccess={refetch} />
             <button className="btn-default" onClick={() => refetch()}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -120,7 +122,7 @@ export function SsmPage() {
             columns={columns}
             rows={data?.parameters ?? []}
             rowKey={(p) => p.name}
-            empty={<EmptyState icon={Settings2} title="No parameters" description="Store configuration values and secrets." />}
+            empty={<EmptyState icon={Settings2} title="No parameters" description="Store configuration values and secrets." action={<SeedDataButton service="ssm" onSuccess={refetch} variant="primary" />} />}
           />
         )}
       </div>

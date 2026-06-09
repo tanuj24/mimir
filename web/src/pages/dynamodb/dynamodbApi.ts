@@ -34,8 +34,17 @@ export const ddbApi = {
   deleteTable: (name: string) => api.del(`/dynamodb/tables/${encodeURIComponent(name)}`),
   scan: (
     name: string,
-  ): Promise<{ items: Record<string, unknown>[]; count: number; scannedCount: number }> =>
-    api.get(`/dynamodb/tables/${encodeURIComponent(name)}/items`),
+    opts?: { limit?: number; startKey?: unknown },
+  ): Promise<{
+    items: Record<string, unknown>[];
+    count: number;
+    scannedCount: number;
+    lastEvaluatedKey: unknown | null;
+  }> => {
+    const p = new URLSearchParams({ limit: String(opts?.limit ?? 50) });
+    if (opts?.startKey) p.set("startKey", JSON.stringify(opts.startKey));
+    return api.get(`/dynamodb/tables/${encodeURIComponent(name)}/items?${p}`);
+  },
   putItem: (name: string, item: Record<string, unknown>) =>
     api.put(`/dynamodb/tables/${encodeURIComponent(name)}/items`, { item }),
   deleteItem: (name: string, key: Record<string, unknown>) =>

@@ -99,7 +99,7 @@ function ignore(codes: string[]) {
 // ---------------------------------------------------------------------------
 // S3
 // ---------------------------------------------------------------------------
-async function seedS3() {
+export async function seedS3() {
   const cl = makeClient(S3Client, { forcePathStyle: true });
 
   const exists = await cl
@@ -191,7 +191,7 @@ async function seedS3() {
 // ---------------------------------------------------------------------------
 // DynamoDB
 // ---------------------------------------------------------------------------
-async function seedDynamoDB() {
+export async function seedDynamoDB() {
   const cl = makeClient(DynamoDBClient, {});
   const doc = DynamoDBDocumentClient.from(cl);
 
@@ -254,7 +254,7 @@ function makeZip(filename: string, code: string): Uint8Array {
   return new Uint8Array(zip.toBuffer());
 }
 
-async function seedLambda() {
+export async function seedLambda() {
   const cl = makeClient(LambdaClient, {});
 
   const exists = await cl
@@ -333,7 +333,7 @@ def lambda_handler(event, context):
 // ---------------------------------------------------------------------------
 // SQS
 // ---------------------------------------------------------------------------
-async function seedSqs() {
+export async function seedSqs() {
   const cl = makeClient(SQSClient, {});
 
   const alreadyExists = await cl
@@ -350,7 +350,7 @@ async function seedSqs() {
 // ---------------------------------------------------------------------------
 // SNS
 // ---------------------------------------------------------------------------
-async function seedSns() {
+export async function seedSns() {
   const cl = makeClient(SNSClient, {});
   for (const name of ["mimir-alerts", "mimir-notifications", "mimir-order-events"]) {
     await cl.send(new CreateTopicCommand({ Name: name })).catch(() => {});
@@ -360,7 +360,7 @@ async function seedSns() {
 // ---------------------------------------------------------------------------
 // KMS
 // ---------------------------------------------------------------------------
-async function seedKms() {
+export async function seedKms() {
   const cl = makeClient(KMSClient, {});
 
   const aliases = await cl.send(new ListAliasesCommand({})).catch(() => ({ Aliases: [] }));
@@ -382,7 +382,7 @@ async function seedKms() {
 // ---------------------------------------------------------------------------
 // Secrets Manager
 // ---------------------------------------------------------------------------
-async function seedSecrets() {
+export async function seedSecrets() {
   const cl = makeClient(SecretsManagerClient, {});
 
   const exists = await cl
@@ -421,7 +421,7 @@ async function seedSecrets() {
 // ---------------------------------------------------------------------------
 // SSM Parameter Store
 // ---------------------------------------------------------------------------
-async function seedSsm() {
+export async function seedSsm() {
   const cl = makeClient(SSMClient, {});
 
   const exists = await cl
@@ -455,7 +455,7 @@ async function seedSsm() {
 // ---------------------------------------------------------------------------
 // CloudWatch Logs — sample app logs
 // ---------------------------------------------------------------------------
-async function seedCloudWatchLogs() {
+export async function seedCloudWatchLogs() {
   const cl = makeClient(CloudWatchLogsClient, {});
 
   const group = "/mimir/sample-app";
@@ -488,7 +488,7 @@ async function seedCloudWatchLogs() {
 // ---------------------------------------------------------------------------
 // CloudWatch Metrics
 // ---------------------------------------------------------------------------
-async function seedCloudWatchMetrics() {
+export async function seedCloudWatchMetrics() {
   const cl = makeClient(CloudWatchClient, {});
   const now = Date.now();
 
@@ -511,7 +511,7 @@ async function seedCloudWatchMetrics() {
 // ---------------------------------------------------------------------------
 // Glue — sample job + catalog
 // ---------------------------------------------------------------------------
-async function seedGlue() {
+export async function seedGlue() {
   const cl = makeClient(GlueClient, {});
 
   const exists = await cl
@@ -607,7 +607,7 @@ async function seedGlue() {
 // ---------------------------------------------------------------------------
 // ECS
 // ---------------------------------------------------------------------------
-async function seedEcs() {
+export async function seedEcs() {
   const cl = makeClient(ECSClient, {});
 
   await cl.send(new CreateClusterCommand({ clusterName: "mimir-sample-cluster" })).catch(() => {});
@@ -639,7 +639,7 @@ async function seedEcs() {
 // ---------------------------------------------------------------------------
 // ECR
 // ---------------------------------------------------------------------------
-async function seedEcr() {
+export async function seedEcr() {
   const cl = makeClient(ECRClient, {});
 
   const exists = await cl

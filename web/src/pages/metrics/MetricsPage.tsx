@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Activity, RefreshCw } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { metricsApi, type Metric, type DataPoint } from "./metricsApi";
 import {
   PageHeader,
@@ -109,6 +110,7 @@ export function MetricsPage() {
                 <option key={n} value={n}>{n}</option>
               ))}
             </select>
+            <SeedDataButton service="metrics" onSuccess={refetch} />
             <button className="btn-default" onClick={() => refetch()}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>

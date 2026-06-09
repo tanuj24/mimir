@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Container, RefreshCw, Trash2 } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { ecrApi, type Repository } from "./ecrApi";
 import { formatBytes, formatDate } from "@/lib/format";
 import {
@@ -109,6 +110,7 @@ export function EcrPage() {
         crumbs={[{ label: "Console Home", to: "/" }, { label: "ECR" }]}
         actions={
           <>
+            <SeedDataButton service="ecr" onSuccess={refetch} />
             <button className="btn-default" onClick={() => refetch()}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -126,7 +128,7 @@ export function EcrPage() {
             columns={columns}
             rows={data?.repositories ?? []}
             rowKey={(r) => r.name}
-            empty={<EmptyState icon={Container} title="No repositories" description="Create a repository to store container images." />}
+            empty={<EmptyState icon={Container} title="No repositories" description="Create a repository to store container images." action={<SeedDataButton service="ecr" onSuccess={refetch} variant="primary" />} />}
           />
         )}
       </div>

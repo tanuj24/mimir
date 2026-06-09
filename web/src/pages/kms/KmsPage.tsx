@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, RefreshCw, Power, Trash2 } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { kmsApi, type KmsKey } from "./kmsApi";
 import { formatDate } from "@/lib/format";
 import {
@@ -89,6 +90,7 @@ export function KmsPage() {
         crumbs={[{ label: "Console Home", to: "/" }, { label: "KMS" }]}
         actions={
           <>
+            <SeedDataButton service="kms" onSuccess={refetch} />
             <button className="btn-default" onClick={() => refetch()}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -106,7 +108,7 @@ export function KmsPage() {
             columns={columns}
             rows={data?.keys ?? []}
             rowKey={(k) => k.keyId}
-            empty={<EmptyState icon={KeyRound} title="No keys" description="Create a KMS key to encrypt data." />}
+            empty={<EmptyState icon={KeyRound} title="No keys" description="Create a KMS key to encrypt data." action={<SeedDataButton service="kms" onSuccess={refetch} variant="primary" />} />}
           />
         )}
       </div>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Lock, RefreshCw, Trash2, Eye } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { secretsApi, type SecretSummary } from "./secretsApi";
 import { formatDate } from "@/lib/format";
 import {
@@ -152,6 +153,7 @@ export function SecretsPage() {
         crumbs={[{ label: "Console Home", to: "/" }, { label: "Secrets Manager" }]}
         actions={
           <>
+            <SeedDataButton service="secrets" onSuccess={refetch} />
             <button className="btn-default" onClick={() => refetch()}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -169,7 +171,7 @@ export function SecretsPage() {
             columns={columns}
             rows={data?.secrets ?? []}
             rowKey={(s) => s.arn}
-            empty={<EmptyState icon={Lock} title="No secrets" description="Store a secret such as a DB password or API key." />}
+            empty={<EmptyState icon={Lock} title="No secrets" description="Store a secret such as a DB password or API key." action={<SeedDataButton service="secrets" onSuccess={refetch} variant="primary" />} />}
           />
         )}
       </div>

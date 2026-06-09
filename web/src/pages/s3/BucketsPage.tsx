@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { HardDrive, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { s3Api, type Bucket } from "./s3Api";
 import { formatDate } from "@/lib/format";
 import {
@@ -126,6 +127,7 @@ export function BucketsPage() {
         crumbs={[{ label: "Console Home", to: "/" }, { label: "S3" }]}
         actions={
           <>
+            <SeedDataButton service="s3" onSuccess={refetch} />
             <button className="btn-default" onClick={() => refetch()}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -152,9 +154,12 @@ export function BucketsPage() {
                 title="No buckets yet"
                 description="Create your first bucket to start storing objects."
                 action={
-                  <button className="btn-primary" onClick={() => setCreateOpen(true)}>
-                    <Plus className="h-4 w-4" /> Create bucket
-                  </button>
+                  <div className="flex gap-2">
+                    <SeedDataButton service="s3" onSuccess={refetch} variant="primary" />
+                    <button className="btn-default" onClick={() => setCreateOpen(true)}>
+                      <Plus className="h-4 w-4" /> Create bucket
+                    </button>
+                  </div>
                 }
               />
             }

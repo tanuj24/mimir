@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Database, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { ddbApi } from "./dynamodbApi";
 import {
   PageHeader,
@@ -156,6 +157,7 @@ export function TablesPage() {
         crumbs={[{ label: "Console Home", to: "/" }, { label: "DynamoDB" }]}
         actions={
           <>
+            <SeedDataButton service="dynamodb" onSuccess={refetch} />
             <button className="btn-default" onClick={() => refetch()}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -181,9 +183,12 @@ export function TablesPage() {
                 title="No tables yet"
                 description="Create a table to start storing items."
                 action={
-                  <button className="btn-primary" onClick={() => setCreateOpen(true)}>
-                    <Plus className="h-4 w-4" /> Create table
-                  </button>
+                  <div className="flex gap-2">
+                    <SeedDataButton service="dynamodb" onSuccess={refetch} variant="primary" />
+                    <button className="btn-default" onClick={() => setCreateOpen(true)}>
+                      <Plus className="h-4 w-4" /> Create table
+                    </button>
+                  </div>
                 }
               />
             }

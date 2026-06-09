@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, RefreshCw, Trash2, Megaphone, Plus } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { snsApi, type Topic } from "./snsApi";
 import {
   PageHeader,
@@ -163,6 +164,7 @@ export function SnsPage() {
         crumbs={[{ label: "Console Home", to: "/" }, { label: "SNS" }]}
         actions={
           <>
+            <SeedDataButton service="sns" onSuccess={refetch} />
             <button className="btn-default" onClick={() => refetch()}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -180,7 +182,7 @@ export function SnsPage() {
             columns={columns}
             rows={data?.topics ?? []}
             rowKey={(t) => t.arn}
-            empty={<EmptyState icon={Bell} title="No topics" description="Create a topic to publish notifications." />}
+            empty={<EmptyState icon={Bell} title="No topics" description="Create a topic to publish notifications." action={<SeedDataButton service="sns" onSuccess={refetch} variant="primary" />} />}
           />
         )}
       </div>

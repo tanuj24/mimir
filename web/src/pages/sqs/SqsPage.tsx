@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Send, RefreshCw, Trash2, Inbox, Eraser } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { sqsApi, type Queue } from "./sqsApi";
 import {
   PageHeader,
@@ -158,6 +159,7 @@ export function SqsPage() {
         crumbs={[{ label: "Console Home", to: "/" }, { label: "SQS" }]}
         actions={
           <>
+            <SeedDataButton service="sqs" onSuccess={refetch} />
             <button className="btn-default" onClick={() => refetch()}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -177,7 +179,7 @@ export function SqsPage() {
             columns={columns}
             rows={data?.queues ?? []}
             rowKey={(q) => q.url}
-            empty={<EmptyState icon={Send} title="No queues" description="Create a queue to start sending messages." />}
+            empty={<EmptyState icon={Send} title="No queues" description="Create a queue to start sending messages." action={<SeedDataButton service="sqs" onSuccess={refetch} variant="primary" />} />}
           />
         )}
       </div>

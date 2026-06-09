@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Boxes, RefreshCw, Trash2 } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { ecsApi, type Cluster } from "./ecsApi";
 import {
   PageHeader,
@@ -110,6 +111,7 @@ export function EcsPage() {
         crumbs={[{ label: "Console Home", to: "/" }, { label: "ECS" }]}
         actions={
           <>
+            <SeedDataButton service="ecs" onSuccess={refetch} />
             <button className="btn-default" onClick={() => refetch()}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -127,7 +129,7 @@ export function EcsPage() {
             columns={columns}
             rows={data?.clusters ?? []}
             rowKey={(c) => c.name}
-            empty={<EmptyState icon={Boxes} title="No clusters" description="Create a cluster to run containerized services." />}
+            empty={<EmptyState icon={Boxes} title="No clusters" description="Create a cluster to run containerized services." action={<SeedDataButton service="ecs" onSuccess={refetch} variant="primary" />} />}
           />
         )}
       </div>

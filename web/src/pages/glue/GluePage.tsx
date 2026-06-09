@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Workflow, NotebookPen, BookOpen } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { PageHeader } from "@/components/ui";
 import { JobsTab } from "./JobsTab";
 import { NotebookTab } from "./NotebookTab";
@@ -21,6 +22,7 @@ export function GluePage() {
         title="AWS Glue"
         subtitle="ETL jobs, interactive notebooks, and the Data Catalog"
         crumbs={[{ label: "Console Home", to: "/" }, { label: "Glue" }]}
+        actions={<SeedDataButton service="glue" onSuccess={() => {}} />}
       />
 
       <div className="mb-4 flex gap-1 border-b border-line">

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Zap, RefreshCw, Trash2, Play, Plus } from "lucide-react";
+import { SeedDataButton } from "@/components/SeedDataButton";
 import { lambdaApi, RUNTIMES, ARCHITECTURES, runtimeDefaults, type LambdaFn, type InvokeResult } from "./lambdaApi";
 import { LambdaDetail } from "./LambdaDetail";
 import { formatBytes, formatDate } from "@/lib/format";
@@ -357,6 +358,7 @@ export function LambdaPage() {
         crumbs={[{ label: "Console Home", to: "/" }, { label: "Lambda" }]}
         actions={
           <>
+            <SeedDataButton service="lambda" onSuccess={refetch} />
             <button className="btn-default" onClick={() => refetch()}>
               <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
             </button>
@@ -380,7 +382,8 @@ export function LambdaPage() {
               <EmptyState
                 icon={Zap}
                 title="No functions"
-                description="Create a function with the button above, or deploy one with the AWS CLI/SDK against the Mimir backend."
+                description="Load sample functions or create one with the button above."
+                action={<SeedDataButton service="lambda" onSuccess={refetch} variant="primary" />}
               />
             }
           />
