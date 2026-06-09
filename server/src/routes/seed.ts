@@ -17,7 +17,7 @@ import {
   seedEcr,
 } from "../seed.js";
 
-import { S3Client, HeadBucketCommand } from "@aws-sdk/client-s3";
+import { S3Client, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { DynamoDBClient, DescribeTableCommand } from "@aws-sdk/client-dynamodb";
 import { LambdaClient, GetFunctionCommand } from "@aws-sdk/client-lambda";
 import { SQSClient, GetQueueUrlCommand } from "@aws-sdk/client-sqs";
@@ -51,7 +51,7 @@ const SEEDERS: Record<string, () => Promise<void>> = {
 const STATUS_CHECKS: Record<string, () => Promise<boolean>> = {
   s3: () =>
     makeClient(S3Client, { forcePathStyle: true })
-      .send(new HeadBucketCommand({ Bucket: "mimir-sample-data" }))
+      .send(new HeadObjectCommand({ Bucket: "mimir-sample-data", Key: "tables/users/users.csv" }))
       .then(() => true).catch(() => false),
 
   dynamodb: () =>

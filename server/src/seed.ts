@@ -9,6 +9,7 @@ import {
   CreateBucketCommand,
   PutObjectCommand,
   HeadBucketCommand,
+  HeadObjectCommand,
 } from "@aws-sdk/client-s3";
 import {
   DynamoDBClient,
@@ -101,8 +102,10 @@ function ignore(codes: string[]) {
 export async function seedS3() {
   const cl = makeClient(S3Client, { forcePathStyle: true });
 
+  // Check a specific file written at the end of the seed, not just the bucket.
+  // This ensures a partial seed (bucket exists but tables/ CSV missing) is re-run.
   const exists = await cl
-    .send(new HeadBucketCommand({ Bucket: "mimir-sample-data" }))
+    .send(new HeadObjectCommand({ Bucket: "mimir-sample-data", Key: "tables/users/users.csv" }))
     .then(() => true)
     .catch(() => false);
   if (exists) return;

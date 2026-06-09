@@ -97,11 +97,15 @@ async function handle(req, res) {
     await configureS3(conn, body);
 
     if (body.setup_sql) {
-      try {
-        await exec(conn, body.setup_sql);
-      } catch (e) {
-        // Log but do not abort — individual view failures should not block the query
-        console.warn('[duck] setup_sql warning:', e.message);
+      // Run each semicolon-separated statement individually so a failing view
+      // (e.g. Hudi table not yet written) does not block the rest of setup.
+      const stmts = body.setup_sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
+      for (const stmt of stmts) {
+        try {
+          await exec(conn, stmt);
+        } catch (e) {
+          console.warn('[duck] setup_sql warning:', e.message.split('\n')[0]);
+        }
       }
     }
 
