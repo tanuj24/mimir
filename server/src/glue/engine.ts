@@ -195,6 +195,39 @@ try {
   /* best effort */
 }
 
+// ---------------------------------------------------------------------------
+// Hudi JAR cache
+// Real AWS Glue 4.0 injects the Hudi bundle from its control plane; the dev
+// Docker image ships without it. We download it once from Maven Central and
+// cache it alongside WORK_DIR so subsequent runs reuse it without re-downloading.
+// ---------------------------------------------------------------------------
+const HUDI_CACHE_DIR = join(WORK_DIR, ".hudi-cache");
+const HUDI_JAR_NAME = "hudi-spark3.3-bundle_2.12-0.13.1.jar";
+const HUDI_JAR_URL =
+  `https://repo1.maven.org/maven2/org/apache/hudi/hudi-spark3.3-bundle_2.12/0.13.1/${HUDI_JAR_NAME}`;
+const CONTAINER_HUDI = "/tmp/mimir-hudi";
+try { mkdirSync(HUDI_CACHE_DIR, { recursive: true }); } catch { /* best effort */ }
+
+async function ensureHudiJar(log: (s: string) => void): Promise<string | null> {
+  const dest = join(HUDI_CACHE_DIR, HUDI_JAR_NAME);
+  if (existsSync(dest)) {
+    log(`[mimir] using cached Hudi bundle\n`);
+    return `${CONTAINER_HUDI}/${HUDI_JAR_NAME}`;
+  }
+  log(`[mimir] downloading Hudi bundle from Maven Central (~200 MB, cached after first run)…\n`);
+  try {
+    const resp = await fetch(HUDI_JAR_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status} ${resp.statusText}`);
+    const bytes = Buffer.from(await resp.arrayBuffer());
+    writeFileSync(dest, bytes);
+    log(`[mimir] Hudi bundle cached (${(bytes.length / 1e6).toFixed(0)} MB)\n`);
+    return `${CONTAINER_HUDI}/${HUDI_JAR_NAME}`;
+  } catch (e) {
+    log(`[mimir] WARNING: could not download Hudi bundle: ${(e as Error).message}\n`);
+    return null;
+  }
+}
+
 export type JobType = "pythonshell" | "glueetl";
 
 export interface JobParameter {
@@ -509,17 +542,26 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
     const image = glueImage(cfg.glueVersion);
     const cores = Math.max(1, cfg.numberOfWorkers || 1);
     const script = `${CONTAINER_WORK}/script.py`;
+
+    // Detect --datalake-formats hudi early — needed both in submit args and docker args.
+    const datalakeFormats = (
+      cfg.parameters.find((p) => p.key === "--datalake-formats" || p.key === "datalake-formats")?.value ?? ""
+    ).split(",").map((s) => s.trim());
+    const hasHudi = isSpark && datalakeFormats.includes("hudi");
+
+    // Ensure the Hudi JAR is cached locally before building the docker args.
+    // The JAR is ~200 MB and downloaded once from Maven Central; subsequent runs skip the download.
+    let hudiJarContainerPath: string | null = null;
+    if (hasHudi) {
+      hudiJarContainerPath = await ensureHudiJar(log);
+    }
+
     let inner: string;
 
     if (isSpark) {
       // Endpoint config for the Glue catalog client (from_catalog) lives in the
       // work dir, which we put on the driver classpath below.
       writeGlueCatalogConf(dir);
-      // Detect --datalake-formats hudi and inject the required Spark extensions.
-      const datalakeFormats = (
-        cfg.parameters.find((p) => p.key === "--datalake-formats" || p.key === "datalake-formats")?.value ?? ""
-      ).split(",").map((s) => s.trim());
-      const hasHudi = datalakeFormats.includes("hudi");
       // $SPARK_HOME differs per image (/home/glue_user/spark, /usr/lib/spark…),
       // so reference it from the shell rather than hard-coding a path.
       const submit = ["--master", `local[${cores}]`, ...s3aConf()];
@@ -534,7 +576,9 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
         submit.push("--conf", "spark.ui.enabled=false");
       }
       if (pyFiles.length) submit.push("--py-files", pyFiles.join(","));
-      if (jars.length) submit.push("--jars", jars.join(","));
+      // Merge user-supplied jars with the Hudi bundle (if downloaded).
+      const allJars = [...(hudiJarContainerPath ? [hudiJarContainerPath] : []), ...jars];
+      if (allJars.length) submit.push("--jars", allJars.join(","));
       if (files.length) submit.push("--files", files.join(","));
       submit.push(script, ...jobArgs);
       // Prepend the work dir (holding glue-*.conf) to the preset classpath.
@@ -558,6 +602,8 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
       ...ADD_HOST,
       ...awsEnvArgs(),
       ...(isSpark && cfg.sparkUiEnabled ? ["-p", "4040:4040"] : []),
+      // Bind-mount the Hudi JAR cache so the Glue container can access it.
+      ...(hudiJarContainerPath ? ["-v", `${HUDI_CACHE_DIR}:${CONTAINER_HUDI}:ro`] : []),
       "-v",
       `${dir}:${CONTAINER_WORK}`,
       "-w",
