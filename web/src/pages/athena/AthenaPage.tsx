@@ -472,7 +472,7 @@ export function AthenaPage() {
   }
 
   async function runQuery(sqlOverride?: string) {
-    const sqlToRun = (sqlOverride ?? getStatementToRun()).trim();
+    const sqlToRun = (sqlOverride ?? getStatementToRun()).trim().replace(/;+$/, "").trim();
     if (!sqlToRun || running) return;
     setRunning(true);
     setResult(null);
