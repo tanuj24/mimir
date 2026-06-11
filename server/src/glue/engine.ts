@@ -575,7 +575,13 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
       } else {
         submit.push("--conf", "spark.ui.enabled=false");
       }
-      if (pyFiles.length) submit.push("--py-files", pyFiles.join(","));
+
+      // .whl files cannot be used via --py-files (Spark doesn't unpack them);
+      // pip-install them on the driver so PySpark's local[N] executors share the process.
+      const whlFiles = pyFiles.filter((p) => p.toLowerCase().endsWith(".whl"));
+      const sparkPyFiles = pyFiles.filter((p) => !p.toLowerCase().endsWith(".whl"));
+      if (sparkPyFiles.length) submit.push("--py-files", sparkPyFiles.join(","));
+
       // Merge user-supplied jars with the Hudi bundle (if downloaded).
       const allJars = [...(hudiJarContainerPath ? [hudiJarContainerPath] : []), ...jars];
       if (allJars.length) submit.push("--jars", allJars.join(","));
@@ -583,14 +589,25 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
       submit.push(script, ...jobArgs);
       // Prepend the work dir (holding glue-*.conf) to the preset classpath.
       const cp = `--conf spark.driver.extraClassPath="${CONTAINER_WORK}:$DEFCP" --conf spark.executor.extraClassPath="${CONTAINER_WORK}:$DEFCP"`;
-      const pip = pipMods.length ? `pip install --user --quiet ${pipMods.join(" ")} && ` : "";
+      // pip3 for all installs — Glue 4.0 is Python 3 only; whl files from extraPyFiles are
+      // installed alongside additionalPythonModules so both paths use the same pip call.
+      const allPipInstalls = [...whlFiles, ...pipMods];
+      const pip = allPipInstalls.length
+        ? `pip3 install --user --quiet ${shellJoin(allPipInstalls)} && `
+        : "";
       inner = `${pip}${READ_DEFCP}"$SPARK_HOME"/bin/spark-submit ${cp} ${shellJoin(submit)}`;
     } else {
       // Python shell: awsglue + boto3/pandas/numpy already ship on the image's
-      // PYTHONPATH; prepend the work dir so extra-py-files resolve too.
-      const ppath = pyFiles.length ? `PYTHONPATH="${CONTAINER_WORK}:$PYTHONPATH" ` : "";
-      // The Glue image ships python2 as `python`; awsglue/boto3 live in python3.
-      const pip = pipMods.length ? `pip3 install --user --quiet ${pipMods.join(" ")} && ` : "";
+      // PYTHONPATH; prepend the work dir so .py/.zip extra-py-files resolve.
+      // .whl files are pip-installed instead of put on PYTHONPATH (wheels are
+      // not directly importable without installation).
+      const whlFiles = pyFiles.filter((p) => p.toLowerCase().endsWith(".whl"));
+      const importablePyFiles = pyFiles.filter((p) => !p.toLowerCase().endsWith(".whl"));
+      const ppath = importablePyFiles.length ? `PYTHONPATH="${CONTAINER_WORK}:$PYTHONPATH" ` : "";
+      const allPipInstalls = [...whlFiles, ...pipMods];
+      const pip = allPipInstalls.length
+        ? `pip3 install --user --quiet ${shellJoin(allPipInstalls)} && `
+        : "";
       inner = `${pip}${ppath}python3 ${script} ${shellJoin(jobArgs)}`;
     }
 

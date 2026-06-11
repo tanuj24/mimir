@@ -67,7 +67,7 @@ function JobDetail({ name, onBack }: { name: string; onBack: () => void }) {
 
   const save = useMutation({
     mutationFn: () =>
-      glueApi.saveJob({ name, type: detail.data!.job.type, script, config: config ?? undefined }),
+      glueApi.saveJob({ name, type: detail.data!.job.type, script, scriptLocation: detail.data?.job.scriptLocation, config: config ?? undefined }),
     onSuccess: () => {
       notify("success", "Job saved");
       qc.invalidateQueries({ queryKey: ["glue", "job", name] });
@@ -79,7 +79,7 @@ function JobDetail({ name, onBack }: { name: string; onBack: () => void }) {
   const run = useMutation({
     // Persist edits first so the run uses the latest script + config.
     mutationFn: async () => {
-      await glueApi.saveJob({ name, type: detail.data!.job.type, script, config: config ?? undefined });
+      await glueApi.saveJob({ name, type: detail.data!.job.type, script, scriptLocation: detail.data?.job.scriptLocation, config: config ?? undefined });
       return glueApi.runJob(name);
     },
     onSuccess: (r) => {

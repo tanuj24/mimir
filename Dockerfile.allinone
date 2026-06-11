@@ -3,7 +3,7 @@
 #
 #   docker build -f Dockerfile.allinone -t tanujsoni027/mimir-aws .
 #   docker run -d --name mimir \
-#     -p 8080:80 -p 4566:4566 \
+#     -p 8080:8080 -p 4566:4566 \
 #     -v /var/run/docker.sock:/var/run/docker.sock \
 #     -v /tmp/mimir-glue:/tmp/mimir-glue \
 #     tanujsoni027/mimir-aws
@@ -105,9 +105,9 @@ COPY docker/allinone/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh \
  && mkdir -p /app/data /tmp/mimir-glue /run/nginx /root/.duckdb/extensions
 
-# 80 = console, 4566 = AWS edge (so AWS CLI/SDKs can hit it), 4000 = proxy
-EXPOSE 80 4566 4000
+# 8080 = console (nginx), 4566 = AWS edge (so AWS CLI/SDKs can hit it), 4000 = proxy
+EXPOSE 8080 4566 4000
 HEALTHCHECK --interval=10s --timeout=4s --start-period=60s --retries=12 \
-  CMD wget -q --spider http://localhost:4566/_mimir/health && wget -q --spider http://localhost/ || exit 1
+  CMD wget -q --spider http://localhost:4566/_mimir/health && wget -q --spider http://localhost:8080/ || exit 1
 
 ENTRYPOINT ["/entrypoint.sh"]
