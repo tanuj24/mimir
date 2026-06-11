@@ -1,0 +1,10 @@
+{
+  "version": "1.0",
+  "max_rows": 500,
+  "output_format": "parquet",
+  "notify_on_completion": true,
+  "tags": {
+    "team": "data-eng",
+    "project": "mimir-demo"
+  }
+}

@@ -513,6 +513,7 @@ async function executeRun(run: JobRun, job: GlueJob): Promise<void> {
       const s3c = makeClient(S3Client, { forcePathStyle: true });
       const res = await s3c.send(new GetObjectCommand({ Bucket: bucket, Key: key }));
       const bytes = await res.Body!.transformToByteArray();
+      if (bytes.length === 0) throw new Error("empty file");
       writeFileSync(scriptPath, Buffer.from(bytes));
       log(`[mimir] loaded script from ${job.scriptLocation} (${bytes.length} bytes)\n`);
     } catch (e) {
