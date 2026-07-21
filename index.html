@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1120">
   <title>Mimir — Local AWS Cloud Emulator | Free LocalStack Alternative</title>
   <meta name="description" content="Run AWS locally: 54 AWS-compatible services including S3, Lambda, DynamoDB, RDS and Step Functions, with a 27-service web console. Free, no AWS account.">
   <link rel="canonical" href="https://tanuj24.github.io/mimir/">
@@ -66,46 +67,98 @@
   }
   </script>
   <style>
-    :root { --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --accent: #ec7211; --blue: #0d94d9; --bg: #ffffff; --canvas: #f8fafc; }
-    @media (prefers-color-scheme: dark) {
-      :root { --ink: #e2e8f0; --muted: #94a3b8; --line: #1e293b; --bg: #0b1220; --canvas: #0f172a; }
+    html { color-scheme: dark; }
+    :root {
+      --bg: #0b1120;
+      --surface: #101a2c;
+      --surface2: #0d1424;
+      --line: #1e2b40;
+      --ink: #e6ecf5;
+      --muted: #93a1b7;
+      --teal: #14b8a6;
+      --teal-deep: #0d9488;
+      --cyan: #4cc9f0;
+      --glow: rgba(20,184,166,0.13);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.6; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); font-size: 1.05rem; line-height: 1.7; }
     .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
-    nav { border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; }
+    a { color: var(--cyan); }
+
+    /* Nav */
+    nav { position: sticky; top: 0; z-index: 50; background: rgba(11,17,32,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
     nav .wrap { display: flex; align-items: center; gap: 22px; height: 56px; }
-    .wordmark { font-weight: 700; font-size: 1.1rem; color: var(--ink); text-decoration: none; margin-right: auto; }
-    .wordmark span { color: var(--accent); }
+    .wordmark { font-weight: 800; font-size: 1.12rem; letter-spacing: -0.01em; color: var(--ink); text-decoration: none; margin-right: auto; }
+    .wordmark span { color: var(--teal); }
     nav a.navlink { color: var(--muted); text-decoration: none; font-size: 0.95rem; padding: 4px 2px; }
     nav a.navlink:hover { color: var(--ink); }
-    nav a.navlink.active { color: var(--accent); font-weight: 600; }
-    header { padding: 72px 0 40px; text-align: center; }
-    h1 { font-size: 2.4rem; line-height: 1.2; margin-bottom: 16px; }
-    .tagline { font-size: 1.25rem; color: var(--muted); max-width: 720px; margin: 0 auto 28px; }
-    .cta { display: inline-block; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; margin: 6px; }
-    .cta.primary { background: var(--accent); color: #fff; }
-    .cta.ghost { border: 1.5px solid var(--blue); color: var(--blue); }
-    .install-box { position: relative; max-width: 760px; margin: 28px auto 0; }
-    pre { background: #0b1220; color: #e2e8f0; border-radius: 10px; padding: 18px 20px; overflow-x: auto; font-size: 0.88rem; text-align: left; border: 1px solid #1e293b; }
-    .copy-btn { position: absolute; top: 10px; right: 10px; background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 4px 12px; font-size: 0.78rem; font-family: inherit; cursor: pointer; }
-    .copy-btn:hover { background: #334155; }
-    .install-caption { font-size: 0.9rem; margin-top: 12px; }
-    section { padding: 40px 0; border-top: 1px solid var(--line); }
-    h2 { font-size: 1.6rem; margin-bottom: 18px; }
-    h3 { font-size: 1.1rem; margin: 18px 0 6px; }
-    p { color: var(--muted); margin-bottom: 12px; }
-    img.shot { width: 100%; border-radius: 12px; border: 1px solid var(--line); margin: 14px 0 26px; }
-    ul.features { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 20px 0; }
-    ul.features li { background: var(--canvas); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; color: var(--muted); }
-    ul.features li strong { color: var(--ink); display: block; margin-bottom: 4px; }
+    nav a.navlink.active { color: var(--teal); font-weight: 600; }
+
+    /* Hero */
+    header { padding: 84px 0 44px; text-align: center; background: radial-gradient(900px 420px at 50% -80px, var(--glow), transparent 70%); }
+    h1 { font-size: clamp(2.2rem, 5vw, 3.3rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 18px; }
+    .grad { background: linear-gradient(90deg, #14b8a6, #4cc9f0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .tagline { font-size: 1.2rem; color: var(--muted); max-width: 740px; margin: 0 auto 30px; }
+    .tagline strong { color: var(--ink); }
+
+    /* Buttons */
+    .btn { display: inline-block; padding: 12px 26px; border-radius: 10px; font-weight: 600; text-decoration: none; margin: 6px; transition: transform .12s ease, background .12s ease, border-color .12s ease; }
+    .btn-primary { background: var(--teal); color: #04211c; }
+    .btn-primary:hover { background: var(--teal-deep); transform: translateY(-1px); }
+    .btn-ghost { border: 1.5px solid var(--line); color: var(--ink); }
+    .btn-ghost:hover { border-color: var(--teal); transform: translateY(-1px); }
+
+    /* Terminal */
+    .terminal { max-width: 760px; margin: 30px auto 0; background: var(--surface2); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; text-align: left; }
+    .term-bar { display: flex; align-items: center; gap: 7px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+    .term-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+    .term-dot.r { background: #ff5f57; } .term-dot.y { background: #febc2e; } .term-dot.g { background: #28c840; }
+    .term-title { color: var(--muted); font-size: 0.78rem; margin-left: 6px; margin-right: auto; }
+    .copy-btn { background: var(--surface); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 3px 12px; font-size: 0.78rem; font-family: inherit; cursor: pointer; }
+    .copy-btn:hover { color: var(--ink); border-color: var(--teal); }
+    .terminal pre { padding: 18px 20px; overflow-x: auto; font-size: 0.9rem; line-height: 1.5; color: var(--ink); }
+    .terminal code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .prompt { color: var(--teal); user-select: none; }
+    .install-caption { font-size: 0.9rem; color: var(--muted); max-width: 760px; margin: 14px auto 0; }
+    .install-caption strong { color: var(--ink); }
+
+    /* Stats strip */
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; padding: 34px 24px 10px; text-align: center; }
+    .stat-n { display: block; font-size: 1.9rem; font-weight: 800; letter-spacing: -0.02em; color: var(--teal); line-height: 1.2; }
+    .stat-l { display: block; font-size: 0.88rem; color: var(--muted); margin-top: 2px; }
+
+    /* Sections */
+    section { padding: 52px 0; border-top: 1px solid var(--line); }
+    .kicker { display: block; color: var(--teal); text-transform: uppercase; letter-spacing: .1em; font-size: 0.78rem; font-weight: 700; margin-bottom: 8px; }
+    h2 { font-size: 1.65rem; font-weight: 700; letter-spacing: -0.01em; margin-bottom: 14px; }
+    h2 + p, .section-lede { color: var(--muted); margin-bottom: 12px; }
+    section p { color: var(--muted); margin-bottom: 12px; }
+    img.shot { width: 100%; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.45); margin: 14px 0 30px; }
+
+    /* Feature cards */
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 24px 0 20px; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; transition: border-color .15s ease, box-shadow .15s ease; }
+    .card:hover { border-color: var(--teal); box-shadow: 0 8px 30px rgba(20,184,166,0.08); }
+    .card .icon { color: var(--teal); margin-bottom: 10px; }
+    .card .icon svg { width: 20px; height: 20px; display: block; }
+    .card h3 { font-size: 1.02rem; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+    .card p { color: var(--muted); font-size: 0.95rem; margin: 0; }
+
+    /* Comparison table */
+    .table-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin: 18px 0; }
     .table-scroll { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }
-    th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
-    th { color: var(--ink); }
+    table { width: 100%; border-collapse: collapse; font-size: 0.93rem; }
+    th, td { text-align: left; padding: 11px 16px; border-bottom: 1px solid var(--line); }
+    tr:last-child td { border-bottom: none; }
+    th { color: var(--muted); text-transform: uppercase; letter-spacing: .06em; font-size: 0.75rem; font-weight: 700; background: var(--surface2); }
     td { color: var(--muted); }
-    footer { padding: 40px 0 60px; text-align: center; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); }
-    a { color: var(--blue); }
+    td.mimir { color: var(--teal); font-weight: 600; }
+
+    /* FAQ */
+    .faq h3 { font-size: 1.08rem; font-weight: 700; color: var(--ink); margin: 22px 0 6px; }
+    .faq p strong { color: var(--ink); }
+
+    footer { padding: 44px 0 64px; text-align: center; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); }
     .disclaimer { font-size: 0.8rem; margin-top: 12px; }
   </style>
 </head>
@@ -119,46 +172,97 @@
     </div>
   </nav>
 
-  <header class="wrap">
-    <h1>Mimir — Your Local AWS Cloud</h1>
-    <p class="tagline"><strong>See your cloud, before you ship your cloud.</strong><br>
-    A local AWS cloud emulator: 54 AWS-compatible services — S3, Lambda, DynamoDB, RDS, Step Functions, API Gateway, Glue and more — on <strong>localhost:4566</strong>, with a 27-service web console on <strong>localhost:8080</strong>, real container-backed engines, and zero AWS account. Free.</p>
-    <a class="cta primary" href="install.html">Install Mimir</a>
-    <a class="cta ghost" href="https://hub.docker.com/r/tanujsoni027/mimir-aws">Docker Hub</a>
-    <div class="install-box">
-      <pre><code id="install-cmd">curl -fsSL https://tanuj24.github.io/mimir/install.sh | sh</code></pre>
-      <button class="copy-btn" type="button" onclick="copyInstall(this)">Copy</button>
+  <header>
+    <div class="wrap">
+      <h1>Mimir — Your <span class="grad">Local AWS Cloud</span></h1>
+      <p class="tagline"><strong>See your cloud, before you ship your cloud.</strong><br>
+      A local AWS cloud emulator: 54 AWS-compatible services — S3, Lambda, DynamoDB, RDS, Step Functions, API Gateway, Glue and more — on <strong>localhost:4566</strong>, with a 27-service web console on <strong>localhost:8080</strong>, real container-backed engines, and zero AWS account. Free.</p>
+      <a class="btn btn-primary" href="install.html">Install Mimir</a>
+      <a class="btn btn-ghost" href="https://hub.docker.com/r/tanujsoni027/mimir-aws">Docker Hub</a>
+      <div class="terminal">
+        <div class="term-bar">
+          <span class="term-dot r"></span><span class="term-dot y"></span><span class="term-dot g"></span>
+          <span class="term-title">terminal</span>
+          <button class="copy-btn" type="button" onclick="copyInstall(this)">Copy</button>
+        </div>
+        <pre><code><span class="prompt">$ </span><span id="install-cmd">curl -fsSL https://tanuj24.github.io/mimir/install.sh | sh</span></code></pre>
+      </div>
       <p class="install-caption">Then run <strong>mimir start</strong> and open <strong>http://localhost:8080</strong> — click &ldquo;Load sample data&rdquo; on any console page to explore a populated cloud.<br>
       or run it with Docker — <a href="install.html">see all install options</a>. Needs a container runtime (Docker Desktop, Docker Engine or colima); first download ~1&nbsp;GB.</p>
     </div>
   </header>
 
+  <div class="stats wrap">
+    <div class="stat"><span class="stat-n">54</span><span class="stat-l">AWS-compatible services</span></div>
+    <div class="stat"><span class="stat-n">27</span><span class="stat-l">console UIs</span></div>
+    <div class="stat"><span class="stat-n">$0.00</span><span class="stat-l">everything free</span></div>
+    <div class="stat"><span class="stat-n">amd64 + arm64</span><span class="stat-l">multi-arch image</span></div>
+  </div>
+
   <section class="wrap">
+    <span class="kicker">Live execution</span>
     <h2>Watch Step Functions run — locally</h2>
     <p>A real-time workflow graph: states color in real time as the execution progresses, Choice branches show their conditions, and Task nodes deep-link to the local resources they invoke.</p>
     <img class="shot" src="screenshots/step-functions-workflow-graph-live-execution.png" alt="AWS Step Functions running locally with a live workflow graph in the Mimir console" loading="lazy">
+  </section>
 
+  <section class="wrap">
+    <span class="kicker">Console</span>
     <h2>27 AWS service consoles, one image</h2>
     <p>The bundled web console covers 27 services — every page has a one-click &ldquo;Load sample data&rdquo; button, so you can explore a populated cloud immediately.</p>
     <img class="shot" src="screenshots/mimir-console-home-aws-services.png" alt="Mimir web console with local AWS services: S3, Lambda, DynamoDB, RDS, ECS, Step Functions, API Gateway" loading="lazy">
   </section>
 
   <section class="wrap">
+    <span class="kicker">Features</span>
     <h2>What you get</h2>
-    <ul class="features">
-      <li><strong>Real engines, not mocks</strong>Lambda runs in real runtime containers. RDS starts real PostgreSQL, MySQL or MariaDB. ElastiCache runs real Redis, Valkey or Memcached. OpenSearch is the real engine. EKS boots real k3s. EC2 gives you local instances with a browser SSH terminal.</li>
-      <li><strong>Step Functions live graph</strong>A live workflow graph where states color in real time and Task nodes deep-link to the Lambda, Glue job or other resource they invoke.</li>
-      <li><strong>API Gateway you can curl</strong>Build REST &amp; HTTP APIs in the console, wire them to Lambdas, invoke them locally seconds later.</li>
-      <li><strong>Glue that actually runs</strong>Real PySpark jobs and notebooks — including Apache Hudi — plus MSK/Kafka and ECS, all container-backed.</li>
-      <li><strong>Automatic persistence</strong>State persists automatically in a mimir-data Docker volume — surviving stops, container removal and image updates. No flags needed.</li>
-      <li><strong>No port roulette</strong>Data endpoints live in a dedicated 5500&ndash;5550 range — RDS, ElastiCache and Neptune via the published 5500&ndash;5524 ports; OpenSearch, EC2 SSH, EKS and ECR bind their host ports automatically. Your local Redis, Postgres and Elasticsearch stay untouched.</li>
-      <li><strong>Sample data in one click</strong>Every console page has a &ldquo;Load sample data&rdquo; button — no scripting required to see a service working.</li>
-      <li><strong>CloudWatch everywhere</strong>CloudFormation deploys real stacks, and every service streams logs to its AWS-convention CloudWatch log group, exactly like the real cloud.</li>
-    </ul>
+    <div class="cards">
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
+        <h3>Real engines, not mocks</h3>
+        <p>Lambda runs in real runtime containers. RDS starts real PostgreSQL, MySQL or MariaDB. ElastiCache runs real Redis, Valkey or Memcached. OpenSearch is the real engine. EKS boots real k3s. EC2 gives you local instances with a browser SSH terminal.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M6.2 8.2 10.8 16M17.8 8.2 13.2 16M7.5 6h9"/></svg></div>
+        <h3>Step Functions live graph</h3>
+        <p>A live workflow graph where states color in real time and Task nodes deep-link to the Lambda, Glue job or other resource they invoke.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></div>
+        <h3>API Gateway you can curl</h3>
+        <p>Build REST &amp; HTTP APIs in the console, wire them to Lambdas, invoke them locally seconds later.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.9 2.9M15.5 15.5l2.9 2.9M18.4 5.6l-2.9 2.9M8.5 15.5l-2.9 2.9"/></svg></div>
+        <h3>Glue that actually runs</h3>
+        <p>Real PySpark jobs and notebooks — including Apache Hudi — plus MSK/Kafka and ECS, all container-backed.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+        <h3>Automatic persistence</h3>
+        <p>State persists automatically in a mimir-data Docker volume — surviving stops, container removal and image updates. No flags needed.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6l7-3z"/></svg></div>
+        <h3>No port roulette</h3>
+        <p>Data endpoints live in a dedicated 5500&ndash;5550 range — RDS, ElastiCache and Neptune via the published 5500&ndash;5524 ports; OpenSearch, EC2 SSH, EKS and ECR bind their host ports automatically. Your local Redis, Postgres and Elasticsearch stay untouched.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3l14 7-6.2 2-2 6.2L5 3z"/></svg></div>
+        <h3>Sample data in one click</h3>
+        <p>Every console page has a &ldquo;Load sample data&rdquo; button — no scripting required to see a service working.</p>
+      </div>
+      <div class="card">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div>
+        <h3>CloudWatch everywhere</h3>
+        <p>CloudFormation deploys real stacks, and every service streams logs to its AWS-convention CloudWatch log group, exactly like the real cloud.</p>
+      </div>
+    </div>
     <p>Zero code changes: point your AWS CLI, SDK or app at <strong>http://localhost:4566</strong> with access key <strong>mimir</strong>, secret <strong>mimir</strong>, region <strong>us-east-1</strong> — everything runs locally on your machine.</p>
   </section>
 
   <section class="wrap">
+    <span class="kicker">Screenshots</span>
     <h2>API Gateway, invokable in seconds</h2>
     <p>Create a REST or HTTP API, attach a Lambda integration, and curl it on localhost — no deploy pipeline, no waiting.</p>
     <img class="shot" src="screenshots/api-gateway-rest-api-local-invoke.png" alt="API Gateway REST API created and invoked locally in the Mimir console" loading="lazy">
@@ -169,22 +273,26 @@
   </section>
 
   <section class="wrap">
+    <span class="kicker">Comparison</span>
     <h2>Mimir vs LocalStack</h2>
-    <div class="table-scroll">
-      <table>
-        <tr><th></th><th>Mimir</th><th>LocalStack (free)</th></tr>
-        <tr><td>Web console</td><td>27 services, bundled</td><td>Resource browser</td></tr>
-        <tr><td>RDS / ElastiCache</td><td>Real Postgres/Redis, free</td><td>Paid tier</td></tr>
-        <tr><td>ECS / EKS</td><td>Real containers / k3s, free</td><td>Paid tier</td></tr>
-        <tr><td>Glue job execution</td><td>Real local Spark, free</td><td>Paid tier</td></tr>
-        <tr><td>Cognito / Athena</td><td>Included, free</td><td>Paid tier</td></tr>
-        <tr><td>Step Functions UI</td><td>Live workflow graph</td><td>&mdash;</td></tr>
-        <tr><td>Price</td><td>Everything free</td><td>Free core + paid tiers</td></tr>
-      </table>
+    <div class="table-card">
+      <div class="table-scroll">
+        <table>
+          <tr><th></th><th>Mimir</th><th>LocalStack (free)</th></tr>
+          <tr><td>Web console</td><td class="mimir">✓ 27 services, bundled</td><td>Resource browser</td></tr>
+          <tr><td>RDS / ElastiCache</td><td class="mimir">✓ Real Postgres/Redis, free</td><td>Paid tier</td></tr>
+          <tr><td>ECS / EKS</td><td class="mimir">✓ Real containers / k3s, free</td><td>Paid tier</td></tr>
+          <tr><td>Glue job execution</td><td class="mimir">✓ Real local Spark, free</td><td>Paid tier</td></tr>
+          <tr><td>Cognito / Athena</td><td class="mimir">✓ Included, free</td><td>Paid tier</td></tr>
+          <tr><td>Step Functions UI</td><td class="mimir">✓ Live workflow graph</td><td>&mdash;</td></tr>
+          <tr><td>Price</td><td class="mimir">✓ Everything free</td><td>Free core + paid tiers</td></tr>
+        </table>
+      </div>
     </div>
   </section>
 
-  <section class="wrap">
+  <section class="wrap faq">
+    <span class="kicker">FAQ</span>
     <h2>FAQ</h2>
     <h3>How do I run AWS locally without an AWS account?</h3>
     <p>Install Mimir and point your AWS CLI or SDK at http://localhost:4566 with access key <strong>mimir</strong>, secret <strong>mimir</strong>, region <strong>us-east-1</strong>. No account and no sign-up. Core services work offline once pulled; container-backed engines (Glue, RDS, EKS) download their engine images on first use.</p>

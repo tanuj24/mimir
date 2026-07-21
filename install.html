@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1120">
   <title>Install Mimir — Run AWS Locally in One Command | Install Local AWS</title>
   <meta name="description" content="Install a local AWS cloud in one command: curl the Mimir installer or run one Docker command — 54 AWS services and a full web console. Free, no account.">
   <link rel="canonical" href="https://tanuj24.github.io/mimir/install.html">
@@ -46,45 +47,84 @@
   }
   </script>
   <style>
-    :root { --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --accent: #ec7211; --blue: #0d94d9; --bg: #ffffff; --canvas: #f8fafc; }
-    @media (prefers-color-scheme: dark) {
-      :root { --ink: #e2e8f0; --muted: #94a3b8; --line: #1e293b; --bg: #0b1220; --canvas: #0f172a; }
+    :root {
+      --bg: #0b1120;
+      --surface: #101a2c;
+      --surface2: #0d1424;
+      --line: #1e2b40;
+      --ink: #e6ecf5;
+      --muted: #93a1b7;
+      --teal: #14b8a6;
+      --teal-deep: #0d9488;
+      --cyan: #4cc9f0;
+      --glow: rgba(20,184,166,0.13);
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.6; }
+    html { color-scheme: dark; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); font-size: 1.05rem; line-height: 1.7; }
     .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
-    nav { border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; }
-    nav .wrap { display: flex; align-items: center; gap: 18px; padding-top: 14px; padding-bottom: 14px; }
-    .wordmark { font-weight: 700; font-size: 1.1rem; color: var(--ink); text-decoration: none; margin-right: auto; }
-    .wordmark span { color: var(--accent); }
+    a { color: var(--cyan); }
+
+    nav { position: sticky; top: 0; z-index: 50; background: rgba(11,17,32,0.85); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+    nav .wrap { display: flex; align-items: center; gap: 22px; height: 56px; }
+    .wordmark { font-weight: 800; font-size: 1.12rem; letter-spacing: -0.01em; color: var(--ink); text-decoration: none; margin-right: auto; }
+    .wordmark span { color: var(--teal); }
     nav a.navlink { color: var(--muted); text-decoration: none; font-size: 0.95rem; padding: 4px 2px; }
     nav a.navlink:hover { color: var(--ink); }
-    nav a.navlink.active { color: var(--accent); font-weight: 600; }
-    header { padding: 72px 0 40px; text-align: center; }
-    h1 { font-size: 2.4rem; line-height: 1.2; margin-bottom: 16px; }
-    .tagline { font-size: 1.25rem; color: var(--muted); max-width: 720px; margin: 0 auto 28px; }
-    .cta { display: inline-block; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; margin: 6px; }
-    .cta.primary { background: var(--accent); color: #fff; }
-    .cta.ghost { border: 1.5px solid var(--blue); color: var(--blue); }
-    pre { position: relative; background: #0b1220; color: #e2e8f0; border-radius: 10px; padding: 18px 20px; overflow-x: auto; font-size: 0.88rem; text-align: left; margin: 28px auto; max-width: 760px; border: 1px solid #1e293b; }
-    pre .copy { position: absolute; top: 8px; right: 8px; background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 3px 10px; font-size: 0.75rem; font-family: inherit; cursor: pointer; }
-    pre .copy:hover { color: #e2e8f0; }
-    section { padding: 40px 0; border-top: 1px solid var(--line); }
-    h2 { font-size: 1.6rem; margin-bottom: 18px; }
-    h3 { font-size: 1.1rem; margin: 18px 0 6px; }
+    nav a.navlink.active { color: var(--teal); font-weight: 600; }
+
+    header.hero { text-align: center; padding: 84px 0 44px; background: radial-gradient(900px 420px at 50% -80px, var(--glow), transparent 70%); }
+    h1 { font-size: clamp(2.2rem, 5vw, 3.3rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.12; margin-bottom: 18px; }
+    .grad { background: linear-gradient(90deg, #14b8a6, #4cc9f0); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .tagline { font-size: 1.15rem; color: var(--muted); max-width: 720px; margin: 0 auto 26px; }
+    .tagline strong { color: var(--ink); }
+    .btn-primary, .btn-ghost { display: inline-block; padding: 12px 24px; border-radius: 10px; font-weight: 700; text-decoration: none; margin: 6px; transition: background .15s ease, border-color .15s ease, transform .15s ease; }
+    .btn-primary { background: var(--teal); color: #04211c; }
+    .btn-primary:hover { background: var(--teal-deep); transform: translateY(-1px); }
+    .btn-ghost { border: 1.5px solid var(--line); color: var(--ink); font-weight: 600; }
+    .btn-ghost:hover { border-color: var(--teal); }
+
+    .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; max-width: 820px; margin: 40px auto 0; }
+    .stat b { display: block; font-size: 1.65rem; font-weight: 800; letter-spacing: -0.01em; color: var(--teal); line-height: 1.2; }
+    .stat span { color: var(--muted); font-size: 0.88rem; }
+
+    section { padding: 48px 0; border-top: 1px solid var(--line); scroll-margin-top: 70px; }
+    .kicker { text-transform: uppercase; letter-spacing: .1em; font-size: 0.78rem; font-weight: 700; color: var(--teal); margin-bottom: 8px; }
+    h2 { font-size: 1.6rem; letter-spacing: -0.01em; margin-bottom: 14px; }
+    h3 { font-size: 1.1rem; margin: 20px 0 6px; }
     p { color: var(--muted); margin-bottom: 12px; }
-    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }
-    th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
-    th { color: var(--ink); }
-    td { color: var(--muted); }
-    td code, p code, li code { background: var(--canvas); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 0.88em; color: var(--ink); }
-    .callout { background: var(--canvas); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; padding: 14px 16px; color: var(--muted); margin: 16px 0; }
+    p strong { color: var(--ink); }
+    td code, p code, li code, .card code { background: var(--surface2); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 0.88em; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+
+    .term { background: var(--surface2); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin: 20px 0; text-align: left; }
+    .term-bar { display: flex; align-items: center; gap: 7px; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+    .dot.r { background: #ff5f57; }
+    .dot.y { background: #febc2e; }
+    .dot.g { background: #28c840; }
+    .term-title { color: var(--muted); font-size: 0.78rem; margin-left: 6px; }
+    .term .copy { margin-left: auto; background: var(--surface); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 3px 12px; font-size: 0.75rem; font-family: inherit; cursor: pointer; transition: color .15s ease, border-color .15s ease; }
+    .term .copy:hover { color: var(--teal); border-color: var(--teal); }
+    .term pre { margin: 0; padding: 16px 18px; overflow-x: auto; font-size: 0.88rem; line-height: 1.55; color: var(--ink); font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .prompt { color: var(--teal); user-select: none; -webkit-user-select: none; }
+
+    .table-card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 18px; overflow-x: auto; margin: 18px 0; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th { text-align: left; text-transform: uppercase; letter-spacing: .06em; font-size: 0.75rem; color: var(--muted); padding: 12px; border-bottom: 1px solid var(--line); }
+    td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); color: var(--muted); }
+    tr:last-child td { border-bottom: none; }
+
+    .callout { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--teal); border-radius: 10px; padding: 14px 16px; color: var(--muted); margin: 16px 0; }
     .callout strong { color: var(--ink); }
-    ul.plain { margin: 12px 0 12px 20px; color: var(--muted); }
-    ul.plain li { margin-bottom: 8px; }
-    ul.plain strong { color: var(--ink); }
-    footer { padding: 40px 0 60px; text-align: center; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); }
-    a { color: var(--blue); }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; margin: 20px 0; }
+    .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; color: var(--muted); transition: border-color .15s ease, box-shadow .15s ease; }
+    .card:hover { border-color: var(--teal); box-shadow: 0 8px 30px rgba(20,184,166,0.08); }
+    .card .ic { color: var(--teal); margin-bottom: 10px; }
+    .card .ic svg { display: block; }
+    .card strong { color: var(--ink); display: block; margin-bottom: 6px; }
+
+    footer { padding: 44px 0 64px; text-align: center; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); }
     .disclaimer { font-size: 0.8rem; margin-top: 12px; }
   </style>
 </head>
@@ -98,84 +138,132 @@
     </div>
   </nav>
 
-  <header class="wrap">
-    <h1>Install Mimir</h1>
-    <p class="tagline"><strong>See your cloud, before you ship your cloud.</strong><br>
-    Install a local AWS cloud with one curl command on macOS and Linux, or one Docker command on any platform. 54 AWS-compatible services on <strong>localhost:4566</strong>, a 27-service web console on <strong>localhost:8080</strong> — free, no AWS account needed.</p>
+  <header class="hero">
+    <div class="wrap">
+      <h1>Install <span class="grad">Mimir</span></h1>
+      <p class="tagline"><strong>See your cloud, before you ship your cloud.</strong><br>
+      Install a local AWS cloud with one curl command on macOS and Linux, or one Docker command on any platform. 54 AWS-compatible services on <strong>localhost:4566</strong>, a 27-service web console on <strong>localhost:8080</strong> — free, no AWS account needed.</p>
+      <a class="btn-primary" href="#script">Install script — macOS &amp; Linux</a>
+      <a class="btn-ghost" href="#docker">Use Docker instead</a>
+      <div class="stats">
+        <div class="stat"><b>54</b><span>AWS-compatible services</span></div>
+        <div class="stat"><b>27</b><span>console UIs</span></div>
+        <div class="stat"><b>$0.00</b><span>everything free</span></div>
+        <div class="stat"><b>amd64 + arm64</b><span>multi-arch</span></div>
+      </div>
+    </div>
   </header>
 
   <section class="wrap" id="script">
-    <h2>1. Recommended — macOS &amp; Linux</h2>
+    <div class="kicker">Option 1 — Recommended</div>
+    <h2>macOS &amp; Linux</h2>
     <p>Install the <code>mimir</code> CLI with one command:</p>
-    <pre><code>curl -fsSL https://tanuj24.github.io/mimir/install.sh | sh</code><button class="copy" type="button">Copy</button></pre>
+    <div class="term">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">terminal</span><button class="copy" type="button">Copy</button></div>
+      <pre><span class="prompt">$ </span><code>curl -fsSL https://tanuj24.github.io/mimir/install.sh | sh</code></pre>
+    </div>
     <p>Then start your local cloud:</p>
-    <pre><code>mimir start</code><button class="copy" type="button">Copy</button></pre>
+    <div class="term">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">terminal</span><button class="copy" type="button">Copy</button></div>
+      <pre><span class="prompt">$ </span><code>mimir start</code></pre>
+    </div>
     <p>Open <strong>http://localhost:8080</strong> for the console. Your AWS CLI, SDKs and apps talk to <strong>http://localhost:4566</strong> with access key <code>mimir</code>, secret key <code>mimir</code>, region <code>us-east-1</code>.</p>
-    <table>
-      <tr><th>Command</th><th>What it does</th></tr>
-      <tr><td><code>mimir start</code></td><td>Starts the local cloud (first run downloads the image, ~1&nbsp;GB).</td></tr>
-      <tr><td><code>mimir stop</code></td><td>Stops the container. All resources are kept.</td></tr>
-      <tr><td><code>mimir status</code></td><td>Shows whether Mimir is running and on which ports.</td></tr>
-      <tr><td><code>mimir logs</code></td><td>Streams container logs.</td></tr>
-      <tr><td><code>mimir restart</code></td><td>Stop and start again — resources are kept.</td></tr>
-      <tr><td><code>mimir update</code></td><td>Pulls the latest image and restarts on it.</td></tr>
-      <tr><td><code>mimir open</code></td><td>Opens the web console in your browser.</td></tr>
-      <tr><td><code>mimir doctor</code></td><td>Checks your container runtime, ports and setup, and suggests fixes.</td></tr>
-      <tr><td><code>mimir uninstall --purge</code></td><td>Removes Mimir; <code>--purge</code> also deletes the <code>mimir-data</code> volume and every stored resource.</td></tr>
-    </table>
+    <div class="table-card">
+      <table>
+        <tr><th>Command</th><th>What it does</th></tr>
+        <tr><td><code>mimir start</code></td><td>Starts the local cloud (first run downloads the image, ~1&nbsp;GB).</td></tr>
+        <tr><td><code>mimir stop</code></td><td>Stops the container. All resources are kept.</td></tr>
+        <tr><td><code>mimir status</code></td><td>Shows whether Mimir is running and on which ports.</td></tr>
+        <tr><td><code>mimir logs</code></td><td>Streams container logs.</td></tr>
+        <tr><td><code>mimir restart</code></td><td>Stop and start again — resources are kept.</td></tr>
+        <tr><td><code>mimir update</code></td><td>Pulls the latest image and restarts on it.</td></tr>
+        <tr><td><code>mimir open</code></td><td>Opens the web console in your browser.</td></tr>
+        <tr><td><code>mimir doctor</code></td><td>Checks your container runtime, ports and setup, and suggests fixes.</td></tr>
+        <tr><td><code>mimir uninstall --purge</code></td><td>Removes Mimir; <code>--purge</code> also deletes the <code>mimir-data</code> volume and every stored resource.</td></tr>
+      </table>
+    </div>
     <div class="callout"><strong>mimir update never loses resources.</strong> Updates are lossless — your buckets, tables, functions, databases and every other resource are always preserved across updates.</div>
   </section>
 
   <section class="wrap" id="docker">
-    <h2>2. Docker — any platform, including Windows</h2>
+    <div class="kicker">Option 2</div>
+    <h2>Docker — any platform, including Windows</h2>
     <p>If you already have Docker, run the image directly:</p>
-    <pre><code>docker run -d --name mimir \
+    <div class="term">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">terminal</span><button class="copy" type="button">Copy</button></div>
+      <pre><span class="prompt">$ </span><code>docker run -d --name mimir \
   -p 8080:80 -p 4566:4566 -p 5500-5524:5500-5524 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /tmp/mimir-glue:/tmp/mimir-glue \
-  tanujsoni027/mimir-aws:latest</code><button class="copy" type="button">Copy</button></pre>
+  tanujsoni027/mimir-aws:latest</code></pre>
+    </div>
     <p>The web console is at <strong>http://localhost:8080</strong> and the AWS-compatible endpoint at <strong>http://localhost:4566</strong>. Credentials: access key <code>mimir</code>, secret key <code>mimir</code>, region <code>us-east-1</code>.</p>
     <div class="callout"><strong>State persists automatically.</strong> Mimir stores everything in a <code>mimir-data</code> Docker volume it manages for you — no volume flags needed. Your resources survive stops, container removal and image updates.</div>
   </section>
 
   <section class="wrap" id="homebrew">
-    <h2>3. Homebrew</h2>
+    <div class="kicker">Option 3</div>
+    <h2>Homebrew</h2>
     <p>Coming soon. Until then, use the install script above — it does the same thing in one command.</p>
   </section>
 
   <section class="wrap" id="requirements">
-    <h2>4. Requirements</h2>
-    <ul class="plain">
-      <li><strong>A container runtime</strong> — Docker Desktop, Docker Engine, or colima. That's the only prerequisite for every install method.</li>
-      <li><strong>~1 GB first download</strong> — the image is multi-arch (linux/amd64 + linux/arm64, Apple Silicon native).</li>
-      <li><strong>No AWS account, ever</strong> — core services work offline once pulled; container-backed engines (Glue, RDS, EKS) download their engine images on first use.</li>
-    </ul>
+    <div class="kicker">Before you start</div>
+    <h2>Requirements</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v10"/></svg></div>
+        <strong>A container runtime</strong>
+        Docker Desktop, Docker Engine, or colima. That's the only prerequisite for every install method.
+      </div>
+      <div class="card">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v10"/><path d="M8 9l4 4 4-4"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg></div>
+        <strong>~1 GB first download</strong>
+        The image is multi-arch (linux/amd64 + linux/arm64, Apple Silicon native).
+      </div>
+      <div class="card">
+        <div class="ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.6-3 7.7-7 9.5-4-1.8-7-4.9-7-9.5V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div>
+        <strong>No AWS account, ever</strong>
+        Core services work offline once pulled; container-backed engines (Glue, RDS, EKS) download their engine images on first use.
+      </div>
+    </div>
   </section>
 
   <section class="wrap" id="updating">
-    <h2>5. Updating &amp; uninstalling</h2>
+    <div class="kicker">Maintenance</div>
+    <h2>Updating &amp; uninstalling</h2>
     <h3>Updating</h3>
     <p>CLI users: run <code>mimir update</code>. It is lossless — resources are always preserved.</p>
     <p>Docker users: pull the new image and recreate the container. Because state lives in the <code>mimir-data</code> volume, nothing is lost:</p>
-    <pre><code>docker pull tanujsoni027/mimir-aws:latest
+    <div class="term">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">terminal</span><button class="copy" type="button">Copy</button></div>
+      <pre><span class="prompt">$ </span><code>docker pull tanujsoni027/mimir-aws:latest
 docker rm -f mimir
 docker run -d --name mimir \
   -p 8080:80 -p 4566:4566 -p 5500-5524:5500-5524 \
   -v /var/run/docker.sock:/var/run/docker.sock \
   -v /tmp/mimir-glue:/tmp/mimir-glue \
-  tanujsoni027/mimir-aws:latest</code><button class="copy" type="button">Copy</button></pre>
+  tanujsoni027/mimir-aws:latest</code></pre>
+    </div>
     <h3>Uninstalling</h3>
     <p><code>mimir uninstall</code> removes the CLI and container but keeps the <code>mimir-data</code> volume, so a later reinstall finds your resources intact. Add <code>--purge</code> to also delete the volume and every stored resource.</p>
   </section>
 
   <section class="wrap" id="troubleshooting">
-    <h2>6. Troubleshooting</h2>
+    <div class="kicker">When things break</div>
+    <h2>Troubleshooting</h2>
     <p>Start with the built-in checkup:</p>
-    <pre><code>mimir doctor</code><button class="copy" type="button">Copy</button></pre>
+    <div class="term">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">terminal</span><button class="copy" type="button">Copy</button></div>
+      <pre><span class="prompt">$ </span><code>mimir doctor</code></pre>
+    </div>
     <p>It verifies your container runtime, port availability and setup, and tells you exactly what to fix.</p>
     <h3>Port conflicts</h3>
     <p>If something already uses port 8080 or 4566, set <code>MIMIR_CONSOLE_PORT</code> and/or <code>MIMIR_EDGE_PORT</code> before starting:</p>
-    <pre><code>MIMIR_CONSOLE_PORT=9090 MIMIR_EDGE_PORT=4567 mimir start</code><button class="copy" type="button">Copy</button></pre>
+    <div class="term">
+      <div class="term-bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="term-title">terminal</span><button class="copy" type="button">Copy</button></div>
+      <pre><span class="prompt">$ </span><code>MIMIR_CONSOLE_PORT=9090 MIMIR_EDGE_PORT=4567 mimir start</code></pre>
+    </div>
     <p>Data endpoints live in a dedicated 5500–5550 range (RDS, ElastiCache and Neptune via the published 5500–5524 ports; the rest bind automatically), so they won't clash with a local Redis, Postgres or Elasticsearch.</p>
     <h3>Still stuck?</h3>
     <p>Open an issue at <a href="https://github.com/tanuj24/mimir/issues">github.com/tanuj24/mimir/issues</a> — include the output of <code>mimir doctor</code> and <code>mimir logs</code>.</p>
@@ -187,9 +275,9 @@ docker run -d --name mimir \
   </footer>
 
   <script>
-    document.querySelectorAll('pre .copy').forEach(function (btn) {
+    document.querySelectorAll('.term .copy').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var code = btn.parentElement.querySelector('code').textContent;
+        var code = btn.closest('.term').querySelector('code').textContent;
         function done() { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); }
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(code).then(done);
