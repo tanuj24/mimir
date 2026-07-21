@@ -1,7 +1,7 @@
 #!/bin/sh
 # Mimir installer — https://github.com/tanuj24/mimir
 #
-#   curl -fsSL https://raw.githubusercontent.com/tanuj24/mimir/main/cli/install.sh | sh
+#   curl -fsSL https://tanuj24.github.io/mimir/install.sh | sh
 #
 # Installs the `mimir` CLI to /usr/local/bin (or ~/.local/bin without sudo).
 set -eu
