@@ -135,6 +135,31 @@
     section p { color: var(--muted); margin-bottom: 12px; }
     img.shot { width: 100%; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.45); margin: 14px 0 30px; }
 
+    /* Service explorer */
+    .explorer { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: 26px; margin: 26px 0 10px; align-items: start; }
+    .svc-nav { display: flex; flex-direction: column; gap: 18px; }
+    .svc-group-label { display: block; color: var(--muted); text-transform: uppercase; letter-spacing: .09em; font-size: 0.7rem; font-weight: 700; margin-bottom: 6px; }
+    .svc-list { display: flex; flex-direction: column; gap: 3px; }
+    .svc-btn { display: block; width: 100%; text-align: left; font: inherit; font-size: 0.92rem; line-height: 1.5; color: var(--muted); background: transparent; border: 1px solid transparent; border-radius: 8px; padding: 5px 11px; cursor: pointer; transition: color .12s ease, background .12s ease, border-color .12s ease; }
+    .svc-btn:hover { color: var(--ink); border-color: var(--line); background: var(--surface); }
+    .svc-btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 1px; }
+    .svc-btn[aria-pressed="true"] { color: #04211c; background: var(--teal); border-color: var(--teal); font-weight: 600; }
+    .svc-btn[aria-pressed="true"]:hover { background: var(--teal-deep); border-color: var(--teal-deep); color: #04211c; }
+    .svc-stage { position: sticky; top: 76px; }
+    .svc-shot { background: var(--surface2); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 12px 40px rgba(0,0,0,0.45); overflow: hidden; }
+    .svc-shot img { display: block; width: 100%; height: auto; aspect-ratio: 1440 / 860; }
+    .svc-caption { color: var(--muted); font-size: 0.9rem; margin-top: 12px; margin-bottom: 0; }
+    .svc-caption strong { color: var(--ink); }
+    @media (max-width: 880px) {
+      .explorer { grid-template-columns: 1fr; gap: 16px; }
+      .svc-stage { position: static; }
+      .svc-nav { flex-direction: row; gap: 20px; overflow-x: auto; padding-bottom: 10px; -webkit-overflow-scrolling: touch; }
+      .svc-group { flex: none; }
+      .svc-list { flex-direction: row; gap: 6px; }
+      .svc-btn { width: auto; white-space: nowrap; border-color: var(--line); background: var(--surface); border-radius: 999px; padding: 4px 14px; }
+      .svc-btn[aria-pressed="true"] { background: var(--teal); border-color: var(--teal); }
+    }
+
     /* Feature cards */
     .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 24px 0 20px; }
     .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 20px; transition: border-color .15s ease, box-shadow .15s ease; }
@@ -206,6 +231,94 @@
     <img class="shot" src="screenshots/step-functions-workflow-graph-live-execution.png" alt="AWS Step Functions running locally with a live workflow graph in the Mimir console" loading="lazy">
   </section>
 
+  <section class="wrap" id="service-explorer">
+    <span class="kicker">Every service, a real console</span>
+    <h2>Pick a service, see its console</h2>
+    <p class="section-lede">All 27 services in the bundled web console, grouped the way AWS groups them. Click any service to see its page.</p>
+    <div class="explorer">
+      <div class="svc-nav" aria-label="Console services by category">
+        <div class="svc-group">
+          <span class="svc-group-label" id="svc-cat-storage">Storage</span>
+          <div class="svc-list" role="group" aria-labelledby="svc-cat-storage">
+            <button class="svc-btn" type="button" data-svc="s3" aria-pressed="true">S3</button>
+          </div>
+        </div>
+        <div class="svc-group">
+          <span class="svc-group-label" id="svc-cat-databases">Databases</span>
+          <div class="svc-list" role="group" aria-labelledby="svc-cat-databases">
+            <button class="svc-btn" type="button" data-svc="dynamodb" aria-pressed="false">DynamoDB</button>
+            <button class="svc-btn" type="button" data-svc="rds" aria-pressed="false">RDS</button>
+            <button class="svc-btn" type="button" data-svc="elasticache" aria-pressed="false">ElastiCache</button>
+          </div>
+        </div>
+        <div class="svc-group">
+          <span class="svc-group-label" id="svc-cat-compute">Compute</span>
+          <div class="svc-list" role="group" aria-labelledby="svc-cat-compute">
+            <button class="svc-btn" type="button" data-svc="lambda" aria-pressed="false">Lambda</button>
+            <button class="svc-btn" type="button" data-svc="ec2" aria-pressed="false">EC2</button>
+          </div>
+        </div>
+        <div class="svc-group">
+          <span class="svc-group-label" id="svc-cat-containers">Containers</span>
+          <div class="svc-list" role="group" aria-labelledby="svc-cat-containers">
+            <button class="svc-btn" type="button" data-svc="ecs" aria-pressed="false">ECS</button>
+            <button class="svc-btn" type="button" data-svc="ecr" aria-pressed="false">ECR</button>
+            <button class="svc-btn" type="button" data-svc="eks" aria-pressed="false">EKS</button>
+          </div>
+        </div>
+        <div class="svc-group">
+          <span class="svc-group-label" id="svc-cat-appint">App Integration</span>
+          <div class="svc-list" role="group" aria-labelledby="svc-cat-appint">
+            <button class="svc-btn" type="button" data-svc="api-gateway" aria-pressed="false">API Gateway</button>
+            <button class="svc-btn" type="button" data-svc="step-functions" aria-pressed="false">Step Functions</button>
+            <button class="svc-btn" type="button" data-svc="eventbridge" aria-pressed="false">EventBridge</button>
+            <button class="svc-btn" type="button" data-svc="sqs" aria-pressed="false">SQS</button>
+            <button class="svc-btn" type="button" data-svc="sns" aria-pressed="false">SNS</button>
+          </div>
+        </div>
+        <div class="svc-group">
+          <span class="svc-group-label" id="svc-cat-analytics">Analytics</span>
+          <div class="svc-list" role="group" aria-labelledby="svc-cat-analytics">
+            <button class="svc-btn" type="button" data-svc="glue" aria-pressed="false">Glue</button>
+            <button class="svc-btn" type="button" data-svc="athena" aria-pressed="false">Athena</button>
+            <button class="svc-btn" type="button" data-svc="kinesis" aria-pressed="false">Kinesis</button>
+            <button class="svc-btn" type="button" data-svc="opensearch" aria-pressed="false">OpenSearch</button>
+            <button class="svc-btn" type="button" data-svc="kafka" aria-pressed="false">MSK/Kafka</button>
+          </div>
+        </div>
+        <div class="svc-group">
+          <span class="svc-group-label" id="svc-cat-security">Security &amp; Identity</span>
+          <div class="svc-list" role="group" aria-labelledby="svc-cat-security">
+            <button class="svc-btn" type="button" data-svc="iam" aria-pressed="false">IAM</button>
+            <button class="svc-btn" type="button" data-svc="cognito" aria-pressed="false">Cognito</button>
+            <button class="svc-btn" type="button" data-svc="kms" aria-pressed="false">KMS</button>
+            <button class="svc-btn" type="button" data-svc="secrets" aria-pressed="false">Secrets Manager</button>
+          </div>
+        </div>
+        <div class="svc-group">
+          <span class="svc-group-label" id="svc-cat-management">Management</span>
+          <div class="svc-list" role="group" aria-labelledby="svc-cat-management">
+            <button class="svc-btn" type="button" data-svc="cloudformation" aria-pressed="false">CloudFormation</button>
+            <button class="svc-btn" type="button" data-svc="ssm" aria-pressed="false">Systems Manager</button>
+          </div>
+        </div>
+        <div class="svc-group">
+          <span class="svc-group-label" id="svc-cat-observability">Observability</span>
+          <div class="svc-list" role="group" aria-labelledby="svc-cat-observability">
+            <button class="svc-btn" type="button" data-svc="logs" aria-pressed="false">CloudWatch Logs</button>
+            <button class="svc-btn" type="button" data-svc="metrics" aria-pressed="false">CloudWatch Metrics</button>
+          </div>
+        </div>
+      </div>
+      <div class="svc-stage">
+        <div class="svc-shot">
+          <img id="svc-img" src="screenshots/services/s3.png" alt="S3 console in Mimir — local AWS S3 emulation" loading="lazy" width="1440" height="860">
+        </div>
+        <p class="svc-caption" id="svc-caption" aria-live="polite">Storage · <strong>S3</strong> console in Mimir</p>
+      </div>
+    </div>
+  </section>
+
   <section class="wrap">
     <span class="kicker">Console</span>
     <h2>27 AWS service consoles, one image</h2>
@@ -220,17 +333,12 @@
       <div class="card">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></svg></div>
         <h3>Real engines, not mocks</h3>
-        <p>Lambda runs in real runtime containers. RDS starts real PostgreSQL, MySQL or MariaDB. ElastiCache runs real Redis, Valkey or Memcached. OpenSearch is the real engine. EKS boots real k3s. EC2 gives you local instances with a browser SSH terminal.</p>
-      </div>
-      <div class="card">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M6.2 8.2 10.8 16M17.8 8.2 13.2 16M7.5 6h9"/></svg></div>
-        <h3>Step Functions live graph</h3>
-        <p>A live workflow graph where states color in real time and Task nodes deep-link to the Lambda, Glue job or other resource they invoke.</p>
+        <p>Lambda runs in real runtime containers. RDS starts a real PostgreSQL, MySQL or MariaDB container — connect with psql or any client, exactly like the real thing. ElastiCache runs real Redis, Valkey or Memcached. OpenSearch is the real engine. EKS boots real k3s. EC2 gives you local instances with a browser SSH terminal.</p>
       </div>
       <div class="card">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg></div>
         <h3>API Gateway you can curl</h3>
-        <p>Build REST &amp; HTTP APIs in the console, wire them to Lambdas, invoke them locally seconds later.</p>
+        <p>Create a REST or HTTP API in the console, attach a Lambda integration, and curl it on localhost seconds later — no deploy pipeline, no waiting.</p>
       </div>
       <div class="card">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M5.6 5.6l2.9 2.9M15.5 15.5l2.9 2.9M18.4 5.6l-2.9 2.9M8.5 15.5l-2.9 2.9"/></svg></div>
@@ -248,28 +356,12 @@
         <p>Data endpoints live in a dedicated 5500&ndash;5550 range — RDS, ElastiCache and Neptune via the published 5500&ndash;5524 ports; OpenSearch, EC2 SSH, EKS and ECR bind their host ports automatically. Your local Redis, Postgres and Elasticsearch stay untouched.</p>
       </div>
       <div class="card">
-        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3l14 7-6.2 2-2 6.2L5 3z"/></svg></div>
-        <h3>Sample data in one click</h3>
-        <p>Every console page has a &ldquo;Load sample data&rdquo; button — no scripting required to see a service working.</p>
-      </div>
-      <div class="card">
         <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l2-6 4 12 2-6h6"/></svg></div>
         <h3>CloudWatch everywhere</h3>
         <p>CloudFormation deploys real stacks, and every service streams logs to its AWS-convention CloudWatch log group, exactly like the real cloud.</p>
       </div>
     </div>
     <p>Zero code changes: point your AWS CLI, SDK or app at <strong>http://localhost:4566</strong> with access key <strong>mimir</strong>, secret <strong>mimir</strong>, region <strong>us-east-1</strong> — everything runs locally on your machine.</p>
-  </section>
-
-  <section class="wrap">
-    <span class="kicker">Screenshots</span>
-    <h2>API Gateway, invokable in seconds</h2>
-    <p>Create a REST or HTTP API, attach a Lambda integration, and curl it on localhost — no deploy pipeline, no waiting.</p>
-    <img class="shot" src="screenshots/api-gateway-rest-api-local-invoke.png" alt="API Gateway REST API created and invoked locally in the Mimir console" loading="lazy">
-
-    <h2>RDS backed by a real database</h2>
-    <p>Launching an RDS instance starts a real PostgreSQL, MySQL or MariaDB container on a dedicated local port — connect with psql or any client, exactly like the real thing.</p>
-    <img class="shot" src="screenshots/rds-local-postgresql-container.png" alt="Local RDS instance backed by a real PostgreSQL container in the Mimir console" loading="lazy">
   </section>
 
   <section class="wrap">
@@ -326,6 +418,61 @@
         document.body.removeChild(ta);
       }
     }
+
+    (function () {
+      var services = {
+        's3':             { name: 'S3',                 cat: 'Storage',             file: 's3.png' },
+        'dynamodb':       { name: 'DynamoDB',           cat: 'Databases',           file: 'dynamodb.png' },
+        'rds':            { name: 'RDS',                cat: 'Databases',           file: 'rds.png' },
+        'elasticache':    { name: 'ElastiCache',        cat: 'Databases',           file: 'elasticache.png' },
+        'lambda':         { name: 'Lambda',             cat: 'Compute',             file: 'lambda.png' },
+        'ec2':            { name: 'EC2',                cat: 'Compute',             file: 'ec2.png' },
+        'ecs':            { name: 'ECS',                cat: 'Containers',          file: 'ecs.png' },
+        'ecr':            { name: 'ECR',                cat: 'Containers',          file: 'ecr.png' },
+        'eks':            { name: 'EKS',                cat: 'Containers',          file: 'eks.png' },
+        'api-gateway':    { name: 'API Gateway',        cat: 'App Integration',     file: 'api-gateway.png' },
+        'step-functions': { name: 'Step Functions',     cat: 'App Integration',     file: 'step-functions.png' },
+        'eventbridge':    { name: 'EventBridge',        cat: 'App Integration',     file: 'eventbridge.png' },
+        'sqs':            { name: 'SQS',                cat: 'App Integration',     file: 'sqs.png' },
+        'sns':            { name: 'SNS',                cat: 'App Integration',     file: 'sns.png' },
+        'glue':           { name: 'Glue',               cat: 'Analytics',           file: 'glue.png' },
+        'athena':         { name: 'Athena',             cat: 'Analytics',           file: 'athena.png' },
+        'kinesis':        { name: 'Kinesis',            cat: 'Analytics',           file: 'kinesis.png' },
+        'opensearch':     { name: 'OpenSearch',         cat: 'Analytics',           file: 'opensearch.png' },
+        'kafka':          { name: 'MSK/Kafka',          cat: 'Analytics',           file: 'kafka.png' },
+        'iam':            { name: 'IAM',                cat: 'Security & Identity', file: 'iam.png' },
+        'cognito':        { name: 'Cognito',            cat: 'Security & Identity', file: 'cognito.png' },
+        'kms':            { name: 'KMS',                cat: 'Security & Identity', file: 'kms.png' },
+        'secrets':        { name: 'Secrets Manager',    cat: 'Security & Identity', file: 'secrets.png' },
+        'cloudformation': { name: 'CloudFormation',     cat: 'Management',          file: 'cloudformation.png' },
+        'ssm':            { name: 'Systems Manager',    cat: 'Management',          file: 'ssm.png' },
+        'logs':           { name: 'CloudWatch Logs',    cat: 'Observability',       file: 'logs.png' },
+        'metrics':        { name: 'CloudWatch Metrics', cat: 'Observability',       file: 'metrics.png' }
+      };
+      var explorer = document.getElementById('service-explorer');
+      if (!explorer) return;
+      var img = document.getElementById('svc-img');
+      var caption = document.getElementById('svc-caption');
+      var buttons = explorer.querySelectorAll('.svc-btn');
+      function select(btn) {
+        var s = services[btn.getAttribute('data-svc')];
+        if (!s) return;
+        img.src = 'screenshots/services/' + s.file;
+        img.alt = s.name + ' console in Mimir — local AWS ' + s.name + ' emulation';
+        caption.innerHTML = '';
+        caption.appendChild(document.createTextNode(s.cat + ' · '));
+        var strong = document.createElement('strong');
+        strong.textContent = s.name;
+        caption.appendChild(strong);
+        caption.appendChild(document.createTextNode(' console in Mimir'));
+        for (var j = 0; j < buttons.length; j++) {
+          buttons[j].setAttribute('aria-pressed', buttons[j] === btn ? 'true' : 'false');
+        }
+      }
+      for (var i = 0; i < buttons.length; i++) {
+        buttons[i].addEventListener('click', function () { select(this); });
+      }
+    })();
   </script>
 </body>
 </html>
