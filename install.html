@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Install Mimir — Run AWS Locally in One Command | Install Local AWS</title>
+  <meta name="description" content="Install a local AWS cloud in one command: curl the Mimir installer or run one Docker command — 54 AWS services and a full web console. Free, no account.">
+  <link rel="canonical" href="https://tanuj24.github.io/mimir/install.html">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Install Mimir — Run AWS Locally in One Command">
+  <meta property="og:description" content="Install a local AWS cloud: one curl command on macOS/Linux, or one Docker command anywhere. 54 AWS-compatible services, full web console, state persists automatically. Free.">
+  <meta property="og:url" content="https://tanuj24.github.io/mimir/install.html">
+  <meta property="og:image" content="https://tanuj24.github.io/mimir/screenshots/mimir-console-home-aws-services.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "HowTo",
+    "name": "Install Mimir and run AWS locally",
+    "description": "Install Mimir, a free local AWS cloud with 54 AWS-compatible services and a full web console, using a one-line install script on macOS/Linux or a single Docker command on any platform.",
+    "tool": [
+      { "@type": "HowToTool", "name": "A container runtime: Docker Desktop, Docker Engine, or colima" }
+    ],
+    "step": [
+      {
+        "@type": "HowToStep",
+        "name": "Install a container runtime",
+        "text": "Install and start Docker Desktop, Docker Engine, or colima. Mimir runs as a single container image (~1 GB first download)."
+      },
+      {
+        "@type": "HowToStep",
+        "name": "Run the install script (macOS and Linux)",
+        "text": "Run: curl -fsSL https://tanuj24.github.io/mimir/install.sh | sh — this installs the mimir CLI."
+      },
+      {
+        "@type": "HowToStep",
+        "name": "Start Mimir",
+        "text": "Run: mimir start. On Windows or any platform, run the Docker image directly instead: docker run -d --name mimir -p 8080:80 -p 4566:4566 -p 5500-5524:5500-5524 -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/mimir-glue:/tmp/mimir-glue tanujsoni027/mimir-aws:latest"
+      },
+      {
+        "@type": "HowToStep",
+        "name": "Open the console and connect",
+        "text": "Open http://localhost:8080 for the web console. Point your AWS CLI or SDK at http://localhost:4566 with access key mimir, secret key mimir, region us-east-1. State persists automatically in a mimir-data Docker volume."
+      }
+    ]
+  }
+  </script>
+  <style>
+    :root { --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --accent: #ec7211; --blue: #0d94d9; --bg: #ffffff; --canvas: #f8fafc; }
+    @media (prefers-color-scheme: dark) {
+      :root { --ink: #e2e8f0; --muted: #94a3b8; --line: #1e293b; --bg: #0b1220; --canvas: #0f172a; }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.6; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+    nav { border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; }
+    nav .wrap { display: flex; align-items: center; gap: 18px; padding-top: 14px; padding-bottom: 14px; }
+    .wordmark { font-weight: 700; font-size: 1.1rem; color: var(--ink); text-decoration: none; margin-right: auto; }
+    .wordmark span { color: var(--accent); }
+    nav a.navlink { color: var(--muted); text-decoration: none; font-size: 0.95rem; padding: 4px 2px; }
+    nav a.navlink:hover { color: var(--ink); }
+    nav a.navlink.active { color: var(--accent); font-weight: 600; }
+    header { padding: 72px 0 40px; text-align: center; }
+    h1 { font-size: 2.4rem; line-height: 1.2; margin-bottom: 16px; }
+    .tagline { font-size: 1.25rem; color: var(--muted); max-width: 720px; margin: 0 auto 28px; }
+    .cta { display: inline-block; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; margin: 6px; }
+    .cta.primary { background: var(--accent); color: #fff; }
+    .cta.ghost { border: 1.5px solid var(--blue); color: var(--blue); }
+    pre { position: relative; background: #0b1220; color: #e2e8f0; border-radius: 10px; padding: 18px 20px; overflow-x: auto; font-size: 0.88rem; text-align: left; margin: 28px auto; max-width: 760px; border: 1px solid #1e293b; }
+    pre .copy { position: absolute; top: 8px; right: 8px; background: #1e293b; color: #94a3b8; border: 1px solid #334155; border-radius: 6px; padding: 3px 10px; font-size: 0.75rem; font-family: inherit; cursor: pointer; }
+    pre .copy:hover { color: #e2e8f0; }
+    section { padding: 40px 0; border-top: 1px solid var(--line); }
+    h2 { font-size: 1.6rem; margin-bottom: 18px; }
+    h3 { font-size: 1.1rem; margin: 18px 0 6px; }
+    p { color: var(--muted); margin-bottom: 12px; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }
+    th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+    th { color: var(--ink); }
+    td { color: var(--muted); }
+    td code, p code, li code { background: var(--canvas); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; font-size: 0.88em; color: var(--ink); }
+    .callout { background: var(--canvas); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 10px; padding: 14px 16px; color: var(--muted); margin: 16px 0; }
+    .callout strong { color: var(--ink); }
+    ul.plain { margin: 12px 0 12px 20px; color: var(--muted); }
+    ul.plain li { margin-bottom: 8px; }
+    ul.plain strong { color: var(--ink); }
+    footer { padding: 40px 0 60px; text-align: center; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); }
+    a { color: var(--blue); }
+    .disclaimer { font-size: 0.8rem; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="wrap">
+      <a class="wordmark" href="index.html">Mimir<span>.</span></a>
+      <a class="navlink" href="index.html">Home</a>
+      <a class="navlink active" href="install.html" aria-current="page">Install</a>
+      <a class="navlink" href="https://hub.docker.com/r/tanujsoni027/mimir-aws">Docker Hub</a>
+    </div>
+  </nav>
+
+  <header class="wrap">
+    <h1>Install Mimir</h1>
+    <p class="tagline"><strong>See your cloud, before you ship your cloud.</strong><br>
+    Install a local AWS cloud with one curl command on macOS and Linux, or one Docker command on any platform. 54 AWS-compatible services on <strong>localhost:4566</strong>, a 27-service web console on <strong>localhost:8080</strong> — free, no AWS account needed.</p>
+  </header>
+
+  <section class="wrap" id="script">
+    <h2>1. Recommended — macOS &amp; Linux</h2>
+    <p>Install the <code>mimir</code> CLI with one command:</p>
+    <pre><code>curl -fsSL https://tanuj24.github.io/mimir/install.sh | sh</code><button class="copy" type="button">Copy</button></pre>
+    <p>Then start your local cloud:</p>
+    <pre><code>mimir start</code><button class="copy" type="button">Copy</button></pre>
+    <p>Open <strong>http://localhost:8080</strong> for the console. Your AWS CLI, SDKs and apps talk to <strong>http://localhost:4566</strong> with access key <code>mimir</code>, secret key <code>mimir</code>, region <code>us-east-1</code>.</p>
+    <table>
+      <tr><th>Command</th><th>What it does</th></tr>
+      <tr><td><code>mimir start</code></td><td>Starts the local cloud (first run downloads the image, ~1&nbsp;GB).</td></tr>
+      <tr><td><code>mimir stop</code></td><td>Stops the container. All resources are kept.</td></tr>
+      <tr><td><code>mimir status</code></td><td>Shows whether Mimir is running and on which ports.</td></tr>
+      <tr><td><code>mimir logs</code></td><td>Streams container logs.</td></tr>
+      <tr><td><code>mimir restart</code></td><td>Stop and start again — resources are kept.</td></tr>
+      <tr><td><code>mimir update</code></td><td>Pulls the latest image and restarts on it.</td></tr>
+      <tr><td><code>mimir open</code></td><td>Opens the web console in your browser.</td></tr>
+      <tr><td><code>mimir doctor</code></td><td>Checks your container runtime, ports and setup, and suggests fixes.</td></tr>
+      <tr><td><code>mimir uninstall --purge</code></td><td>Removes Mimir; <code>--purge</code> also deletes the <code>mimir-data</code> volume and every stored resource.</td></tr>
+    </table>
+    <div class="callout"><strong>mimir update never loses resources.</strong> Updates are lossless — your buckets, tables, functions, databases and every other resource are always preserved across updates.</div>
+  </section>
+
+  <section class="wrap" id="docker">
+    <h2>2. Docker — any platform, including Windows</h2>
+    <p>If you already have Docker, run the image directly:</p>
+    <pre><code>docker run -d --name mimir \
+  -p 8080:80 -p 4566:4566 -p 5500-5524:5500-5524 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /tmp/mimir-glue:/tmp/mimir-glue \
+  tanujsoni027/mimir-aws:latest</code><button class="copy" type="button">Copy</button></pre>
+    <p>The web console is at <strong>http://localhost:8080</strong> and the AWS-compatible endpoint at <strong>http://localhost:4566</strong>. Credentials: access key <code>mimir</code>, secret key <code>mimir</code>, region <code>us-east-1</code>.</p>
+    <div class="callout"><strong>State persists automatically.</strong> Mimir stores everything in a <code>mimir-data</code> Docker volume it manages for you — no volume flags needed. Your resources survive stops, container removal and image updates.</div>
+  </section>
+
+  <section class="wrap" id="homebrew">
+    <h2>3. Homebrew</h2>
+    <p>Coming soon. Until then, use the install script above — it does the same thing in one command.</p>
+  </section>
+
+  <section class="wrap" id="requirements">
+    <h2>4. Requirements</h2>
+    <ul class="plain">
+      <li><strong>A container runtime</strong> — Docker Desktop, Docker Engine, or colima. That's the only prerequisite for every install method.</li>
+      <li><strong>~1 GB first download</strong> — the image is multi-arch (linux/amd64 + linux/arm64, Apple Silicon native).</li>
+      <li><strong>No AWS account, ever</strong> — core services work offline once pulled; container-backed engines (Glue, RDS, EKS) download their engine images on first use.</li>
+    </ul>
+  </section>
+
+  <section class="wrap" id="updating">
+    <h2>5. Updating &amp; uninstalling</h2>
+    <h3>Updating</h3>
+    <p>CLI users: run <code>mimir update</code>. It is lossless — resources are always preserved.</p>
+    <p>Docker users: pull the new image and recreate the container. Because state lives in the <code>mimir-data</code> volume, nothing is lost:</p>
+    <pre><code>docker pull tanujsoni027/mimir-aws:latest
+docker rm -f mimir
+docker run -d --name mimir \
+  -p 8080:80 -p 4566:4566 -p 5500-5524:5500-5524 \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  -v /tmp/mimir-glue:/tmp/mimir-glue \
+  tanujsoni027/mimir-aws:latest</code><button class="copy" type="button">Copy</button></pre>
+    <h3>Uninstalling</h3>
+    <p><code>mimir uninstall</code> removes the CLI and container but keeps the <code>mimir-data</code> volume, so a later reinstall finds your resources intact. Add <code>--purge</code> to also delete the volume and every stored resource.</p>
+  </section>
+
+  <section class="wrap" id="troubleshooting">
+    <h2>6. Troubleshooting</h2>
+    <p>Start with the built-in checkup:</p>
+    <pre><code>mimir doctor</code><button class="copy" type="button">Copy</button></pre>
+    <p>It verifies your container runtime, port availability and setup, and tells you exactly what to fix.</p>
+    <h3>Port conflicts</h3>
+    <p>If something already uses port 8080 or 4566, set <code>MIMIR_CONSOLE_PORT</code> and/or <code>MIMIR_EDGE_PORT</code> before starting:</p>
+    <pre><code>MIMIR_CONSOLE_PORT=9090 MIMIR_EDGE_PORT=4567 mimir start</code><button class="copy" type="button">Copy</button></pre>
+    <p>Data endpoints live in a dedicated 5500–5550 range (RDS, ElastiCache and Neptune via the published 5500–5524 ports; the rest bind automatically), so they won't clash with a local Redis, Postgres or Elasticsearch.</p>
+    <h3>Still stuck?</h3>
+    <p>Open an issue at <a href="https://github.com/tanuj24/mimir/issues">github.com/tanuj24/mimir/issues</a> — include the output of <code>mimir doctor</code> and <code>mimir logs</code>.</p>
+  </section>
+
+  <footer class="wrap">
+    <p><a href="https://hub.docker.com/r/tanujsoni027/mimir-aws">Docker Hub</a> · <a href="https://github.com/tanuj24/mimir/issues">Support</a></p>
+    <p class="disclaimer">Mimir is an independent project, not affiliated with, endorsed by, or sponsored by Amazon Web Services. AWS and AWS service names are trademarks of Amazon.com, Inc.</p>
+  </footer>
+
+  <script>
+    document.querySelectorAll('pre .copy').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var code = btn.parentElement.querySelector('code').textContent;
+        function done() { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1500); }
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(code).then(done);
+        } else {
+          var ta = document.createElement('textarea');
+          ta.value = code; document.body.appendChild(ta); ta.select();
+          try { document.execCommand('copy'); done(); } catch (e) {}
+          document.body.removeChild(ta);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

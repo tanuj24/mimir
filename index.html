@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mimir — Local AWS Cloud Emulator | Free LocalStack Alternative</title>
+  <meta name="description" content="Run AWS locally: 54 AWS-compatible services including S3, Lambda, DynamoDB, RDS and Step Functions, with a 27-service web console. Free, no AWS account.">
+  <link rel="canonical" href="https://tanuj24.github.io/mimir/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Mimir — Your Local AWS Cloud">
+  <meta property="og:description" content="Free local AWS cloud emulator: 54 AWS-compatible services, a 27-service web console, real Postgres/Redis/Kubernetes engines and automatic persistence. No AWS account, no bill.">
+  <meta property="og:url" content="https://tanuj24.github.io/mimir/">
+  <meta property="og:image" content="https://tanuj24.github.io/mimir/screenshots/step-functions-workflow-graph-live-execution.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Mimir",
+    "operatingSystem": "macOS, Linux, Windows (Docker)",
+    "applicationCategory": "DeveloperApplication",
+    "description": "Local AWS cloud emulator in one Docker image — 54 AWS-compatible services including S3, Lambda, DynamoDB, RDS, Step Functions, API Gateway and Glue, with a full web console. Free LocalStack alternative.",
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+    "softwareVersion": "3.0",
+    "url": "https://tanuj24.github.io/mimir/",
+    "downloadUrl": "https://hub.docker.com/r/tanujsoni027/mimir-aws",
+    "author": { "@type": "Person", "name": "Tanuj Soni" }
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How do I run AWS locally without an AWS account?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Install Mimir and point your AWS CLI or SDK at http://localhost:4566 with access key mimir, secret mimir and region us-east-1. All 54 AWS-compatible services accept standard API calls with those local credentials — no account and no sign-up. Core services work offline once the image is pulled; container-backed engines (Glue, RDS, EKS) download their engine images on first use." }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Mimir a free alternative to LocalStack?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Mimir is free, and that includes services LocalStack gates behind paid tiers — such as RDS, ECS, EKS, Cognito, Athena and Glue job execution — plus a full web console covering 27 services." }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I test Lambda functions locally?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. Lambda functions run in real runtime containers with logs, versions, aliases and event source mappings. Create, invoke and debug them from the console or the AWS CLI." }
+      },
+      {
+        "@type": "Question",
+        "name": "Does my data survive restarts and updates?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. State persists automatically in a mimir-data Docker volume — no flags needed. It survives stops, container removal and image updates, and mimir update is lossless: your resources are always preserved." }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Mimir run on Apple Silicon?",
+        "acceptedAnswer": { "@type": "Answer", "text": "Yes. The image is multi-arch (linux/arm64 and linux/amd64), so it runs natively on Apple Silicon Macs, Intel/AMD machines and Linux CI." }
+      },
+      {
+        "@type": "Question",
+        "name": "What do I need to run Mimir?",
+        "acceptedAnswer": { "@type": "Answer", "text": "A container runtime — Docker Desktop, Docker Engine or colima. The first download is about 1 GB. On macOS and Linux the one-line installer sets up the mimir CLI; on any platform, including Windows, you can run the Docker image directly." }
+      }
+    ]
+  }
+  </script>
+  <style>
+    :root { --ink: #0f172a; --muted: #475569; --line: #e2e8f0; --accent: #ec7211; --blue: #0d94d9; --bg: #ffffff; --canvas: #f8fafc; }
+    @media (prefers-color-scheme: dark) {
+      :root { --ink: #e2e8f0; --muted: #94a3b8; --line: #1e293b; --bg: #0b1220; --canvas: #0f172a; }
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: var(--ink); background: var(--bg); line-height: 1.6; }
+    .wrap { max-width: 960px; margin: 0 auto; padding: 0 24px; }
+    nav { border-bottom: 1px solid var(--line); background: var(--bg); position: sticky; top: 0; z-index: 10; }
+    nav .wrap { display: flex; align-items: center; gap: 22px; height: 56px; }
+    .wordmark { font-weight: 700; font-size: 1.1rem; color: var(--ink); text-decoration: none; margin-right: auto; }
+    .wordmark span { color: var(--accent); }
+    nav a.navlink { color: var(--muted); text-decoration: none; font-size: 0.95rem; padding: 4px 2px; }
+    nav a.navlink:hover { color: var(--ink); }
+    nav a.navlink.active { color: var(--accent); font-weight: 600; }
+    header { padding: 72px 0 40px; text-align: center; }
+    h1 { font-size: 2.4rem; line-height: 1.2; margin-bottom: 16px; }
+    .tagline { font-size: 1.25rem; color: var(--muted); max-width: 720px; margin: 0 auto 28px; }
+    .cta { display: inline-block; padding: 12px 24px; border-radius: 8px; font-weight: 600; text-decoration: none; margin: 6px; }
+    .cta.primary { background: var(--accent); color: #fff; }
+    .cta.ghost { border: 1.5px solid var(--blue); color: var(--blue); }
+    .install-box { position: relative; max-width: 760px; margin: 28px auto 0; }
+    pre { background: #0b1220; color: #e2e8f0; border-radius: 10px; padding: 18px 20px; overflow-x: auto; font-size: 0.88rem; text-align: left; border: 1px solid #1e293b; }
+    .copy-btn { position: absolute; top: 10px; right: 10px; background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 4px 12px; font-size: 0.78rem; font-family: inherit; cursor: pointer; }
+    .copy-btn:hover { background: #334155; }
+    .install-caption { font-size: 0.9rem; margin-top: 12px; }
+    section { padding: 40px 0; border-top: 1px solid var(--line); }
+    h2 { font-size: 1.6rem; margin-bottom: 18px; }
+    h3 { font-size: 1.1rem; margin: 18px 0 6px; }
+    p { color: var(--muted); margin-bottom: 12px; }
+    img.shot { width: 100%; border-radius: 12px; border: 1px solid var(--line); margin: 14px 0 26px; }
+    ul.features { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 20px 0; }
+    ul.features li { background: var(--canvas); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; color: var(--muted); }
+    ul.features li strong { color: var(--ink); display: block; margin-bottom: 4px; }
+    .table-scroll { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: 0.92rem; }
+    th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+    th { color: var(--ink); }
+    td { color: var(--muted); }
+    footer { padding: 40px 0 60px; text-align: center; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); }
+    a { color: var(--blue); }
+    .disclaimer { font-size: 0.8rem; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="wrap">
+      <a class="wordmark" href="index.html">Mimir<span>.</span></a>
+      <a class="navlink active" href="index.html" aria-current="page">Home</a>
+      <a class="navlink" href="install.html">Install</a>
+      <a class="navlink" href="https://hub.docker.com/r/tanujsoni027/mimir-aws">Docker Hub</a>
+    </div>
+  </nav>
+
+  <header class="wrap">
+    <h1>Mimir — Your Local AWS Cloud</h1>
+    <p class="tagline"><strong>See your cloud, before you ship your cloud.</strong><br>
+    A local AWS cloud emulator: 54 AWS-compatible services — S3, Lambda, DynamoDB, RDS, Step Functions, API Gateway, Glue and more — on <strong>localhost:4566</strong>, with a 27-service web console on <strong>localhost:8080</strong>, real container-backed engines, and zero AWS account. Free.</p>
+    <a class="cta primary" href="install.html">Install Mimir</a>
+    <a class="cta ghost" href="https://hub.docker.com/r/tanujsoni027/mimir-aws">Docker Hub</a>
+    <div class="install-box">
+      <pre><code id="install-cmd">curl -fsSL https://tanuj24.github.io/mimir/install.sh | sh</code></pre>
+      <button class="copy-btn" type="button" onclick="copyInstall(this)">Copy</button>
+      <p class="install-caption">Then run <strong>mimir start</strong> and open <strong>http://localhost:8080</strong> — click &ldquo;Load sample data&rdquo; on any console page to explore a populated cloud.<br>
+      or run it with Docker — <a href="install.html">see all install options</a>. Needs a container runtime (Docker Desktop, Docker Engine or colima); first download ~1&nbsp;GB.</p>
+    </div>
+  </header>
+
+  <section class="wrap">
+    <h2>Watch Step Functions run — locally</h2>
+    <p>A real-time workflow graph: states color in real time as the execution progresses, Choice branches show their conditions, and Task nodes deep-link to the local resources they invoke.</p>
+    <img class="shot" src="screenshots/step-functions-workflow-graph-live-execution.png" alt="AWS Step Functions running locally with a live workflow graph in the Mimir console" loading="lazy">
+
+    <h2>27 AWS service consoles, one image</h2>
+    <p>The bundled web console covers 27 services — every page has a one-click &ldquo;Load sample data&rdquo; button, so you can explore a populated cloud immediately.</p>
+    <img class="shot" src="screenshots/mimir-console-home-aws-services.png" alt="Mimir web console with local AWS services: S3, Lambda, DynamoDB, RDS, ECS, Step Functions, API Gateway" loading="lazy">
+  </section>
+
+  <section class="wrap">
+    <h2>What you get</h2>
+    <ul class="features">
+      <li><strong>Real engines, not mocks</strong>Lambda runs in real runtime containers. RDS starts real PostgreSQL, MySQL or MariaDB. ElastiCache runs real Redis, Valkey or Memcached. OpenSearch is the real engine. EKS boots real k3s. EC2 gives you local instances with a browser SSH terminal.</li>
+      <li><strong>Step Functions live graph</strong>A live workflow graph where states color in real time and Task nodes deep-link to the Lambda, Glue job or other resource they invoke.</li>
+      <li><strong>API Gateway you can curl</strong>Build REST &amp; HTTP APIs in the console, wire them to Lambdas, invoke them locally seconds later.</li>
+      <li><strong>Glue that actually runs</strong>Real PySpark jobs and notebooks — including Apache Hudi — plus MSK/Kafka and ECS, all container-backed.</li>
+      <li><strong>Automatic persistence</strong>State persists automatically in a mimir-data Docker volume — surviving stops, container removal and image updates. No flags needed.</li>
+      <li><strong>No port roulette</strong>Data endpoints live in a dedicated 5500&ndash;5550 range — RDS, ElastiCache and Neptune via the published 5500&ndash;5524 ports; OpenSearch, EC2 SSH, EKS and ECR bind their host ports automatically. Your local Redis, Postgres and Elasticsearch stay untouched.</li>
+      <li><strong>Sample data in one click</strong>Every console page has a &ldquo;Load sample data&rdquo; button — no scripting required to see a service working.</li>
+      <li><strong>CloudWatch everywhere</strong>CloudFormation deploys real stacks, and every service streams logs to its AWS-convention CloudWatch log group, exactly like the real cloud.</li>
+    </ul>
+    <p>Zero code changes: point your AWS CLI, SDK or app at <strong>http://localhost:4566</strong> with access key <strong>mimir</strong>, secret <strong>mimir</strong>, region <strong>us-east-1</strong> — everything runs locally on your machine.</p>
+  </section>
+
+  <section class="wrap">
+    <h2>API Gateway, invokable in seconds</h2>
+    <p>Create a REST or HTTP API, attach a Lambda integration, and curl it on localhost — no deploy pipeline, no waiting.</p>
+    <img class="shot" src="screenshots/api-gateway-rest-api-local-invoke.png" alt="API Gateway REST API created and invoked locally in the Mimir console" loading="lazy">
+
+    <h2>RDS backed by a real database</h2>
+    <p>Launching an RDS instance starts a real PostgreSQL, MySQL or MariaDB container on a dedicated local port — connect with psql or any client, exactly like the real thing.</p>
+    <img class="shot" src="screenshots/rds-local-postgresql-container.png" alt="Local RDS instance backed by a real PostgreSQL container in the Mimir console" loading="lazy">
+  </section>
+
+  <section class="wrap">
+    <h2>Mimir vs LocalStack</h2>
+    <div class="table-scroll">
+      <table>
+        <tr><th></th><th>Mimir</th><th>LocalStack (free)</th></tr>
+        <tr><td>Web console</td><td>27 services, bundled</td><td>Resource browser</td></tr>
+        <tr><td>RDS / ElastiCache</td><td>Real Postgres/Redis, free</td><td>Paid tier</td></tr>
+        <tr><td>ECS / EKS</td><td>Real containers / k3s, free</td><td>Paid tier</td></tr>
+        <tr><td>Glue job execution</td><td>Real local Spark, free</td><td>Paid tier</td></tr>
+        <tr><td>Cognito / Athena</td><td>Included, free</td><td>Paid tier</td></tr>
+        <tr><td>Step Functions UI</td><td>Live workflow graph</td><td>&mdash;</td></tr>
+        <tr><td>Price</td><td>Everything free</td><td>Free core + paid tiers</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="wrap">
+    <h2>FAQ</h2>
+    <h3>How do I run AWS locally without an AWS account?</h3>
+    <p>Install Mimir and point your AWS CLI or SDK at http://localhost:4566 with access key <strong>mimir</strong>, secret <strong>mimir</strong>, region <strong>us-east-1</strong>. No account and no sign-up. Core services work offline once pulled; container-backed engines (Glue, RDS, EKS) download their engine images on first use.</p>
+    <h3>Is Mimir a free alternative to LocalStack?</h3>
+    <p>Yes — Mimir is free, including services LocalStack gates behind paid tiers: RDS, ECS, EKS, Cognito, Athena and Glue job execution, plus a full 27-service web console.</p>
+    <h3>Can I test Lambda functions locally?</h3>
+    <p>Yes. Functions run in real runtime containers with logs, versions, aliases, function URLs and event source mappings.</p>
+    <h3>Does my data survive restarts and updates?</h3>
+    <p>Yes. State persists automatically in a <strong>mimir-data</strong> Docker volume — no flags needed. It survives stops, container removal and image updates, and <strong>mimir update</strong> is lossless.</p>
+    <h3>Does Mimir run on Apple Silicon?</h3>
+    <p>Yes — the image is multi-arch (arm64 + amd64), Apple Silicon native.</p>
+    <h3>What do I need to run Mimir?</h3>
+    <p>A container runtime — Docker Desktop, Docker Engine or colima. The first download is about 1&nbsp;GB. See <a href="install.html">all install options</a>.</p>
+  </section>
+
+  <footer class="wrap">
+    <p><a href="https://hub.docker.com/r/tanujsoni027/mimir-aws">Docker Hub</a> · <a href="https://github.com/tanuj24/mimir/issues">Support</a></p>
+    <p class="disclaimer">Mimir is an independent project, not affiliated with, endorsed by, or sponsored by Amazon Web Services. AWS and AWS service names are trademarks of Amazon.com, Inc.</p>
+  </footer>
+
+  <script>
+    function copyInstall(btn) {
+      var text = document.getElementById('install-cmd').textContent;
+      function done() { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy'; }, 1600); }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done);
+      } else {
+        var ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    }
+  </script>
+</body>
+</html>

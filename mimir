@@ -1,0 +1,262 @@
+#!/bin/sh
+# mimir — run a local AWS cloud on your machine.
+# https://github.com/tanuj24/mimir
+#
+# Manages the Mimir all-in-one container so you never write a docker command.
+# State persists automatically in a Docker volume across stops and updates.
+set -u
+
+MIMIR_CLI_VERSION="0.1.0"
+IMAGE="${MIMIR_IMAGE:-tanujsoni027/mimir-aws:latest}"
+NAME="${MIMIR_CONTAINER:-mimir}"
+CONSOLE_PORT="${MIMIR_CONSOLE_PORT:-8080}"
+EDGE_PORT="${MIMIR_EDGE_PORT:-4566}"
+
+say()  { printf '%s\n' "$*"; }
+err()  { printf 'mimir: %s\n' "$*" >&2; }
+die()  { err "$@"; exit 1; }
+
+# ---------------------------------------------------------------------------
+# Environment checks
+# ---------------------------------------------------------------------------
+
+need_docker() {
+  command -v docker >/dev/null 2>&1 || die "Docker is not installed.
+  macOS:  https://docs.docker.com/desktop/  (or: brew install colima docker && colima start)
+  Linux:  https://docs.docker.com/engine/install/"
+  docker info >/dev/null 2>&1 || die "Docker is installed but the daemon isn't running.
+  Start Docker Desktop (or 'colima start' / 'sudo systemctl start docker') and retry."
+}
+
+container_exists()  { docker inspect "$NAME" >/dev/null 2>&1; }
+container_running() { [ "$(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" = "true" ]; }
+
+port_free() {
+  if command -v nc >/dev/null 2>&1; then ! nc -z 127.0.0.1 "$1" >/dev/null 2>&1
+  else true; fi
+}
+
+open_url() {
+  if command -v open >/dev/null 2>&1; then open "$1" >/dev/null 2>&1 || true
+  elif command -v xdg-open >/dev/null 2>&1; then xdg-open "$1" >/dev/null 2>&1 || true
+  fi
+}
+
+wait_healthy() {
+  say "waiting for Mimir to come up…"
+  i=0
+  while [ $i -lt 90 ]; do
+    if curl -sf -m 2 "http://localhost:${EDGE_PORT}/_mimir/health" >/dev/null 2>&1 \
+       && curl -sf -m 2 -o /dev/null "http://localhost:${CONSOLE_PORT}/" 2>/dev/null; then
+      return 0
+    fi
+    i=$((i + 1)); sleep 2
+  done
+  return 1
+}
+
+run_container() {
+  docker run -d --name "$NAME" \
+    -p "${CONSOLE_PORT}:80" -p "${EDGE_PORT}:4566" -p 5500-5524:5500-5524 \
+    -v /var/run/docker.sock:/var/run/docker.sock \
+    -v /tmp/mimir-glue:/tmp/mimir-glue \
+    "$IMAGE" >/dev/null
+}
+
+# ---------------------------------------------------------------------------
+# Commands
+# ---------------------------------------------------------------------------
+
+cmd_start() {
+  need_docker
+  if container_exists && [ "$(docker inspect -f '{{.Config.Image}}' "$NAME" 2>/dev/null)" != "$IMAGE" ]; then
+    say "found an existing Mimir container on a different image — recreating on $IMAGE."
+    say "(your saved state is preserved)"
+    docker rm -f "$NAME" >/dev/null 2>&1 || true
+  fi
+  if container_running; then
+    say "Mimir is already running — console: http://localhost:${CONSOLE_PORT}"
+    exit 0
+  fi
+  if container_exists; then
+    say "starting existing Mimir container…"
+    docker start "$NAME" >/dev/null
+  else
+    for p in "$CONSOLE_PORT" "$EDGE_PORT"; do
+      port_free "$p" || die "port $p is already in use — set MIMIR_CONSOLE_PORT / MIMIR_EDGE_PORT to change ports."
+    done
+    if ! docker image inspect "$IMAGE" >/dev/null 2>&1; then
+      say "downloading Mimir (first run, ~1 GB)…"
+      docker pull "$IMAGE" || die "could not pull $IMAGE"
+    fi
+    say "starting Mimir…"
+    run_container || die "failed to start container"
+  fi
+  if wait_healthy; then
+    say ""
+    say "  Mimir is up 🚀"
+    say "  Console:       http://localhost:${CONSOLE_PORT}"
+    say "  AWS endpoint:  http://localhost:${EDGE_PORT}   (key: mimir, secret: mimir, region: us-east-1)"
+    say ""
+    open_url "http://localhost:${CONSOLE_PORT}"
+  else
+    err "Mimir did not become healthy in time. Recent logs:"
+    docker logs --tail 25 "$NAME" >&2 2>&1 || true
+    err ""
+    err "If this container came from an older install, try: mimir update"
+    exit 1
+  fi
+}
+
+cmd_stop() {
+  need_docker
+  container_exists || { say "Mimir is not running."; exit 0; }
+  say "stopping Mimir (state is saved automatically)…"
+  docker stop -t 30 "$NAME" >/dev/null || true
+  say "stopped. 'mimir start' to resume with all your resources."
+}
+
+cmd_restart() { cmd_stop; cmd_start; }
+
+cmd_status() {
+  need_docker
+  if ! container_exists; then
+    say "Mimir: not installed (run 'mimir start')"
+    exit 0
+  fi
+  state=$(docker inspect -f '{{.State.Status}}' "$NAME" 2>/dev/null)
+  say "Container:     $state"
+  if [ "$state" = "running" ]; then
+    if curl -sf -m 3 "http://localhost:${EDGE_PORT}/_mimir/health" >/dev/null 2>&1; then
+      services=$(curl -sf -m 3 "http://localhost:${EDGE_PORT}/_mimir/health" 2>/dev/null \
+        | tr ',' '\n' | grep -c '"running"' 2>/dev/null || echo "?")
+      say "Backend:       healthy (${services} services running)"
+    else
+      say "Backend:       starting…"
+    fi
+    say "Console:       http://localhost:${CONSOLE_PORT}"
+    say "AWS endpoint:  http://localhost:${EDGE_PORT}"
+  fi
+  img=$(docker inspect -f '{{.Config.Image}}' "$NAME" 2>/dev/null)
+  say "Image:         $img"
+}
+
+cmd_logs() {
+  need_docker
+  container_exists || die "Mimir is not running."
+  docker logs "$@" "$NAME"
+}
+
+cmd_update() {
+  need_docker
+  say "checking for updates…"
+  docker pull "$IMAGE" >/dev/null 2>&1 || die "could not pull $IMAGE (offline?)"
+  latest=$(docker image inspect -f '{{.Id}}' "$IMAGE" 2>/dev/null)
+  current=""
+  container_exists && current=$(docker inspect -f '{{.Image}}' "$NAME" 2>/dev/null)
+  if [ "$latest" = "$current" ]; then
+    say "already on the newest version."
+    exit 0
+  fi
+  if container_exists; then
+    say "updating Mimir (your resources are preserved)…"
+    docker stop -t 30 "$NAME" >/dev/null 2>&1 || true
+    # Rescue the old container's /app/data into the state volume before
+    # removing it. Makes updates lossless even from images that predate
+    # automatic persistence, and closes the periodic-sync window.
+    docker volume create mimir-data >/dev/null 2>&1 || true
+    docker cp "$NAME:/app/data" - 2>/dev/null | docker run --rm -i -v mimir-data:/vol busybox:stable \
+      sh -c 'mkdir -p /x && tar -xf - -C /x 2>/dev/null; if [ -d /x/data ] && [ -n "$(ls -A /x/data 2>/dev/null)" ]; then rm -rf /vol/* /vol/..?* /vol/.[!.]* 2>/dev/null; cp -a /x/data/. /vol/; fi' \
+      >/dev/null 2>&1 || true
+    docker rm "$NAME" >/dev/null 2>&1 || true
+  else
+    say "downloaded newest image."
+  fi
+  run_container || die "failed to start updated container"
+  if wait_healthy; then
+    say "updated ✔ — console: http://localhost:${CONSOLE_PORT}"
+  else
+    err "updated container did not become healthy; check 'mimir logs'."
+    exit 1
+  fi
+}
+
+cmd_open() { open_url "http://localhost:${CONSOLE_PORT}"; say "console: http://localhost:${CONSOLE_PORT}"; }
+
+cmd_uninstall() {
+  need_docker
+  purge=false
+  [ "${1:-}" = "--purge" ] && purge=true
+  say "removing Mimir container…"
+  docker rm -f "$NAME" >/dev/null 2>&1 || true
+  # Engine containers Mimir may have started
+  docker ps -aq --filter "name=mimir-" | xargs -r docker rm -f >/dev/null 2>&1 || true
+  if $purge; then
+    say "removing saved state (mimir-data volume)…"
+    docker volume rm mimir-data >/dev/null 2>&1 || true
+    say "uninstalled — all state removed."
+  else
+    say "uninstalled. Your data is kept in the 'mimir-data' volume;"
+    say "'mimir start' brings everything back, or 'mimir uninstall --purge' deletes it."
+  fi
+}
+
+cmd_doctor() {
+  say "mimir CLI ${MIMIR_CLI_VERSION}"
+  if command -v docker >/dev/null 2>&1; then
+    say "docker:        $(docker --version 2>/dev/null | head -1)"
+    if docker info >/dev/null 2>&1; then say "daemon:        running"; else say "daemon:        NOT RUNNING"; fi
+  else
+    say "docker:        NOT INSTALLED"
+  fi
+  for p in "$CONSOLE_PORT" "$EDGE_PORT"; do
+    if port_free "$p"; then say "port $p:     free"; else say "port $p:     in use"; fi
+  done
+  if docker volume inspect mimir-data >/dev/null 2>&1; then
+    say "saved state:   present (mimir-data volume)"
+  else
+    say "saved state:   none yet"
+  fi
+}
+
+cmd_version() {
+  say "mimir CLI ${MIMIR_CLI_VERSION}"
+  say "image: ${IMAGE}"
+}
+
+usage() {
+  cat <<EOF
+mimir — run a local AWS cloud on your machine
+
+Usage: mimir <command>
+
+  start        Start Mimir (downloads on first run) and open the console
+  stop         Stop Mimir — state is saved automatically
+  restart      Restart Mimir
+  status       Show what's running
+  logs [-f]    Show container logs
+  update       Update to the newest version (resources are preserved)
+  open         Open the web console
+  doctor       Check your environment
+  uninstall    Remove Mimir ('--purge' also deletes saved state)
+  version      Print versions
+
+Console: http://localhost:${CONSOLE_PORT} · AWS endpoint: http://localhost:${EDGE_PORT}
+Docs: https://github.com/tanuj24/mimir
+EOF
+}
+
+case "${1:-}" in
+  start)     shift; cmd_start "$@" ;;
+  stop)      shift; cmd_stop "$@" ;;
+  restart)   shift; cmd_restart "$@" ;;
+  status)    shift; cmd_status "$@" ;;
+  logs)      shift; cmd_logs "$@" ;;
+  update)    shift; cmd_update "$@" ;;
+  open)      shift; cmd_open "$@" ;;
+  doctor)    shift; cmd_doctor "$@" ;;
+  uninstall) shift; cmd_uninstall "$@" ;;
+  version|-v|--version) cmd_version ;;
+  ""|help|-h|--help) usage ;;
+  *) err "unknown command: $1"; usage; exit 1 ;;
+esac
